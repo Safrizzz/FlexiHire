@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../components/bottom_nav_bar.dart';
 
 // ============================================================================
 // THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
@@ -368,17 +367,6 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
           ),
         ),
       ),
-      
-      // ===================================================================
-      // BOTTOM NAVIGATION BAR
-      // ===================================================================
-       bottomNavigationBar: CustomBottomNavBar(
-    selectedIndex: 0, // 0 for Discover, 1 for My Jobs, 2 for Messages, 3 for Profile
-    onTap: (index) {
-    // Handle navigation based on index
-    debugPrint('Tab $index clicked');
-      },
-    ),
     );
   }
 

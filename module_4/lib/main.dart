@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'pages/withdraw_earning_page.dart';
-import 'pages/employer_transfer_page.dart';
-import 'pages/earnings_history_page.dart';
-import 'pages/employer_review_page.dart';
+import 'package:get/get.dart';
+import 'payment_rating/withdraw_earning_page.dart';
+import 'payment_rating/employer_transfer_page.dart';
+import 'payment_rating/earnings_history_page.dart';
+import 'payment_rating/employer_review_page.dart';
 import 'components/bottom_nav_bar.dart';
+import 'job_posting_management/discovery_page.dart';
+import 'job_posting_management/my_jobs_page.dart';
+import 'matching_chatting/message_page.dart';
+import 'authentication_profile/profile_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,11 +19,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      // Changed home from withdraw_earning_page to HomePage
-      // HomePage is a new page with two buttons to navigate to both pages
-      home: HomePage()
+      home: const DiscoveryPage(),
+      routes: {
+        '/discovery': (context) => const DiscoveryPage(),
+        '/my_jobs': (context) => const MyJobsPage(),
+        '/message': (context) => const MessagePage(),
+        '/profile': (context) => const ProfilePage(),
+      },
     );
   }
 }

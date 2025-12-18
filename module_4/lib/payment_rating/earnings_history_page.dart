@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../components/bottom_nav_bar.dart';
 
 // ============================================================================
 // THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
@@ -113,16 +112,6 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
           ),
         ],
       ),
-      
-      // ===================================================================
-      // BOTTOM NAVIGATION BAR - The 4 tabs at the bottom
-      // ===================================================================
-  bottomNavigationBar: CustomBottomNavBar(
-    selectedIndex: 0,
-    onTap: (index) {
-      debugPrint('Tab $index clicked');
-    },
-  ),
     );
   }
 
