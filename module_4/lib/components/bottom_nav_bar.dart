@@ -50,7 +50,7 @@ class CustomBottomNavBar extends StatelessWidget {
                 child: Icon(Icons.explore_outlined),
               ),
               activeIcon: Icon(Icons.explore),
-              label: 'Job Explore',
+              label: 'Discover',
             ),
             BottomNavigationBarItem(
               icon: Padding(
