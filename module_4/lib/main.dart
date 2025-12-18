@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'pages/withdraw_earning_page.dart';
+import 'pages/employer_transfer_page.dart';
+import 'pages/earnings_history_page.dart';
+import 'pages/employer_review_page.dart';
+import 'components/bottom_nav_bar.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -10,216 +14,218 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Job Seeking App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const HomePage(),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      // Changed home from withdraw_earning_page to HomePage
+      // HomePage is a new page with two buttons to navigate to both pages
+      home: HomePage()
     );
   }
 }
 
+// ============================================================================
+// HOME PAGE - This is the first page that shows when app launches
+// It has two buttons to navigate to Employee Withdrawal or Employer Transfer
+// ============================================================================
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1E3C),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1E3C),
-        title: const Text('Job Seeking App'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Welcome!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const WithdrawEarningsPage(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 15,
-                ),
-              ),
-              child: const Text(
-                'Go to Withdraw Earnings',
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class WithdrawEarningsPage extends StatefulWidget {
-  const WithdrawEarningsPage({super.key});
-
-  @override
-  State<WithdrawEarningsPage> createState() => _WithdrawEarningsPageState();
-}
-
-class _WithdrawEarningsPageState extends State<WithdrawEarningsPage> {
-  final _formKey = GlobalKey<FormState>();
-
-  final _nameController = TextEditingController(text: 'Eyman Safriz Safiruzialman');
-  final _bankController = TextEditingController(text: 'Maybank - Malayan Banking Berhad');
-  final _accountController = TextEditingController(text: '16424924393');
-  final _withdrawalController = TextEditingController(text: 'RM 0.00');
-
-  double availableEarnings = 0.00;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _bankController.dispose();
-    _accountController.dispose();
-    _withdrawalController.dispose();
-    super.dispose();
-  }
-
-  void _submitWithdrawal() {
-    if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Withdrawal request submitted')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F1E3C),
+      // Set the background color to light gray/white
+      backgroundColor: const Color.fromARGB(255, 250, 250, 251),
+      
+      // ===================================================================
+      // APP BAR - The top header of the page
+      // ===================================================================
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F1E3C),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
-          'Withdraw Earnings',
+          'Job Seeking App',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Withdrawal Info'),
-                  content: const Text(
-                    'Withdrawal requests are processed within 2-3 business days.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
+        centerTitle: true, // Center the title
       ),
-      body: SingleChildScrollView(
+      
+      // ===================================================================
+      // BODY - Main content area
+      // ===================================================================
+      body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A2F5C),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Available Earnings',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'RM ${availableEarnings.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+              // ============================================================
+              // WELCOME TEXT
+              // ============================================================
+              const Text(
+                'Welcome!',
+                style: TextStyle(
+                  color: Color.fromARGB(255, 21, 36, 69),
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 24),
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLabel('Account Holder Name'),
-                    const SizedBox(height: 8),
-                    _buildTextField(_nameController),
-                    const SizedBox(height: 16),
-                    _buildLabel('Bank Name'),
-                    const SizedBox(height: 8),
-                    _buildTextField(_bankController),
-                    const SizedBox(height: 16),
-                    _buildLabel('Account Number'),
-                    const SizedBox(height: 8),
-                    _buildTextField(_accountController),
-                    const SizedBox(height: 16),
-                    _buildLabel('Withdrawal Amount'),
-                    const SizedBox(height: 8),
-                    _buildTextField(_withdrawalController),
-                    const SizedBox(height: 24),
-                    _buildDisclaimerSection(),
-                  ],
+              const SizedBox(height: 16),
+              
+              const Text(
+                'Select an option below',
+                style: TextStyle(
+                  color: Color.fromARGB(255, 53, 53, 53),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 50),
+              
+              // ============================================================
+              // BUTTON 1 - Employee Withdrawal Button
+              // ============================================================
               SizedBox(
+                // Make the button full width with some padding
                 width: double.infinity,
-                height: 50,
+                height: 60,
                 child: ElevatedButton(
-                  onPressed: _submitWithdrawal,
+                  // onPressed = What happens when you tap this button
+                  onPressed: () {
+                    // Navigator.push = Go to a new page
+                    // MaterialPageRoute = How to navigate (slide animation)
+                    // builder = Create the new page (withdraw_earning_page)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WithdrawEarningPage(),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C63FF),
+                    backgroundColor: const Color.fromARGB(255, 39, 39, 215), // Purple
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4, // Shadow effect
                   ),
                   child: const Text(
-                    'Submit Withdrawal',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    'Employee - Withdraw Earnings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20), // Space between buttons
+              
+              // ============================================================
+              // BUTTON 2 - Employer Transfer Button
+              // ============================================================
+              SizedBox(
+                // Make the button full width with some padding
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  // onPressed = What happens when you tap this button
+                  onPressed: () {
+                    // Navigator.push = Go to a new page
+                    // MaterialPageRoute = How to navigate (slide animation)
+                    // builder = Create the new page (employer_transfer_page)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmployerTransferPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 255, 138, 80), // Orange
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4, // Shadow effect
+                  ),
+                  child: const Text(
+                    'Employer - Transfer to Employee',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20), // Space between buttons
+
+              // ============================================================
+              // BUTTON 3 - Earnings History Button
+              // ============================================================
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EarningsHistoryPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 56, 142, 60), // Green
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Text(
+                    'Earnings History',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ============================================================
+              // BUTTON 4 - Employer Review Button
+              // ============================================================
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmployerReviewPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 3, 169, 244), // Blue
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Text(
+                    'Employer Review',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -227,87 +233,16 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningsPage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: Colors.white70,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller) {
-    return TextFormField(
-      controller: controller,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.08),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
-      validator: (value) {
-        if (value?.isEmpty ?? true) {
-          return 'This field is required';
-        }
-        return null;
+    
+    bottomNavigationBar: CustomBottomNavBar(
+    selectedIndex: 0, // 0 for Discover, 1 for My Jobs, 2 for Messages, 3 for Profile
+    onTap: (index) {
+    // Handle navigation based on index
+    debugPrint('Tab $index clicked');
       },
-    );
-  }
-
-  Widget _buildDisclaimerSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Disclaimer:',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildDisclaimerPoint('Please ensure that all information provided is accurate.'),
-        const SizedBox(height: 8),
-        _buildDisclaimerPoint('Ensure the bank account holder\'s name matches your NRIC name.'),
-        const SizedBox(height: 8),
-        _buildDisclaimerPoint('The withdrawal request will be processed according to the information provided.'),
-      ],
-    );
-  }
-
-  Widget _buildDisclaimerPoint(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12, top: 4),
-          child: Icon(Icons.circle, size: 6, color: Colors.white54),
-        ),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13, height: 1.5),
-          ),
-        ),
-      ],
+    ),
+    
+    
     );
   }
 }
