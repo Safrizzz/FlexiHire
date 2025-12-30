@@ -95,7 +95,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
       
       // If everything is valid, show a success message at the bottom
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transfer submitted successfully')),
+        const SnackBar(content: Text('Transfer submitted success')),
       );
       // In a real app, you would send this data to your backend/database here
       // This would include:
