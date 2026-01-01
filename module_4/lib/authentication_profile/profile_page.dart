@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../components/bottom_nav_bar.dart';
 import '../payment_rating/withdraw_earning_page.dart';
 import '../payment_rating/employer_transfer_page.dart';
 import '../payment_rating/earnings_history_page.dart';
 import '../payment_rating/employer_review_page.dart';
+import 'login_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -17,21 +19,36 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 250, 250, 251),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F1E3C),
         elevation: 0,
-        title: const Text(
-          'Profile',
-          style: TextStyle(
+        title: Text(
+          user == null ? 'Login' : 'Profile',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          if (user != null)
+            IconButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (!mounted) return;
+                setState(() {});
+              },
+              icon: const Icon(Icons.logout, color: Colors.white),
+              tooltip: 'Logout',
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
+      body: user == null
+          ? SingleChildScrollView(child: const LoginPage())
+          : SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

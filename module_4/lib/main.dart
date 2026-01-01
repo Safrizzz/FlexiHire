@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'payment_rating/withdraw_earning_page.dart';
 import 'payment_rating/employer_transfer_page.dart';
 import 'payment_rating/earnings_history_page.dart';
@@ -10,7 +12,9 @@ import 'job_posting_management/my_jobs_page.dart';
 import 'matching_chatting/message_page.dart';
 import 'authentication_profile/profile_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
