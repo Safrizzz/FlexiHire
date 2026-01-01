@@ -196,7 +196,7 @@ class HomePage extends StatelessWidget {
                     elevation: 4,
                   ),
                   child: const Text(
-                    'Earnings History',
+                    'Earnings Historys',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
