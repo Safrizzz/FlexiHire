@@ -1,0 +1,262 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'payment_rating/withdraw_earning_page.dart';
+import 'payment_rating/employer_transfer_page.dart';
+import 'payment_rating/earnings_history_page.dart';
+import 'payment_rating/employer_review_page.dart';
+import 'components/bottom_nav_bar.dart';
+import 'job_posting_management/discovery_page.dart';
+import 'job_posting_management/my_jobs_page.dart';
+import 'matching_chatting/message_page.dart';
+import 'authentication_profile/profile_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const MyApp());
+}
+
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: const DiscoveryPage(),
+      routes: {
+        '/discovery': (context) => const DiscoveryPage(),
+        '/my_jobs': (context) => const MyJobsPage(),
+        '/message': (context) => const MessagePage(),
+        '/profile': (context) => const ProfilePage(),
+      },
+    );
+  }
+}
+
+// ============================================================================
+// HOME PAGE - This is the first page that shows when app launches
+// It has two buttons to navigate to Employee Withdrawal or Employer Transfer
+// ============================================================================
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // Set the background color to light gray/white
+      backgroundColor: const Color.fromARGB(255, 250, 250, 251),
+      
+      // ===================================================================
+      // APP BAR - The top header of the page
+      // ===================================================================
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0F1E3C),
+        elevation: 0,
+        title: const Text(
+          'Job Seeking App',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true, // Center the title
+      ),
+      
+      // ===================================================================
+      // BODY - Main content area
+      // ===================================================================
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ============================================================
+              // WELCOME TEXT
+              // ============================================================
+              const Text(
+                'Welcome!',
+                style: TextStyle(
+                  color: Color.fromARGB(255, 21, 36, 69),
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              const Text(
+                'Select an option below',
+                style: TextStyle(
+                  color: Color.fromARGB(255, 53, 53, 53),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 50),
+              
+              // ============================================================
+              // BUTTON 1 - Employee Withdrawal Button
+              // ============================================================
+              SizedBox(
+                // Make the button full width with some padding
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  // onPressed = What happens when you tap this button
+                  onPressed: () {
+                    // Navigator.push = Go to a new page
+                    // MaterialPageRoute = How to navigate (slide animation)
+                    // builder = Create the new page (withdraw_earning_page)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WithdrawEarningPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 39, 39, 215), // Purple
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4, // Shadow effect
+                  ),
+                  child: const Text(
+                    'Employee - Withdraw Earnings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20), // Space between buttons
+              
+              // ============================================================
+              // BUTTON 2 - Employer Transfer Button
+              // ============================================================
+              SizedBox(
+                // Make the button full width with some padding
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  // onPressed = What happens when you tap this button
+                  onPressed: () {
+                    // Navigator.push = Go to a new page
+                    // MaterialPageRoute = How to navigate (slide animation)
+                    // builder = Create the new page (employer_transfer_page)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmployerTransferPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 255, 138, 80), // Orange
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4, // Shadow effect
+                  ),
+                  child: const Text(
+                    'Employer - Transfer to Employee',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20), // Space between buttons
+
+              // ============================================================
+              // BUTTON 3 - Earnings History Button
+              // ============================================================
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EarningsHistoryPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 56, 142, 60), // Green
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Text(
+                    'Earnings History',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ============================================================
+              // BUTTON 4 - Employer Review Button
+              // ============================================================
+              SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmployerReviewPage(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 3, 169, 244), // Blue
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Text(
+                    'Employer Review',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    
+    bottomNavigationBar: CustomBottomNavBar(
+    selectedIndex: 0, // 0 for Discover, 1 for My Jobs, 2 for Messages, 3 for Profile
+    onTap: (index) {
+    // Handle navigation based on index
+    debugPrint('Tab $index clicked');
+      },
+    ),
+    
+    
+    );
+  }
+}
