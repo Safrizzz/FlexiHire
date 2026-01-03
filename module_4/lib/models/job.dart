@@ -11,6 +11,7 @@ class Job {
   final List<String> skillsRequired;
   final String employerId;
   final DateTime createdAt;
+  final String status;
 
   Job({
     required this.id,
@@ -23,6 +24,7 @@ class Job {
     required this.skillsRequired,
     required this.employerId,
     required this.createdAt,
+    this.status = 'open',
   });
 
   factory Job.fromMap(String id, Map<String, dynamic> data) {
@@ -52,6 +54,7 @@ class Job {
           List<String>.from((data['skillsRequired'] ?? []).map((e) => e.toString())),
       employerId: data['employerId'] ?? '',
       createdAt: _toDate(data['createdAt']),
+      status: data['status']?.toString() ?? 'open',
     );
   }
 
@@ -66,6 +69,7 @@ class Job {
       'skillsRequired': skillsRequired,
       'employerId': employerId,
       'createdAt': createdAt.toIso8601String(),
+      'status': status,
     };
   }
 }

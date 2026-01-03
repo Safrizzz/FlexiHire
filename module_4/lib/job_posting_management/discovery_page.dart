@@ -5,7 +5,7 @@ import '../components/bottom_nav_bar.dart';
 import '../models/job.dart';
 import '../services/firestore_service.dart';
 import '../matching_chatting/message_page.dart';
-import '../authentication_profile/login_page.dart';
+import '../authentication_profile/auth_account_page.dart';
 
 class DiscoveryPage extends StatefulWidget {
   const DiscoveryPage({super.key});
@@ -241,6 +241,30 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F4F7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    job.status.toUpperCase(),
+                    style: const TextStyle(color: Color(0xFF616161), fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FutureBuilder<double>(
+                  future: _service.getEmployerAverageRating(job.employerId),
+                  builder: (context, snapshot) {
+                    final avg = snapshot.data ?? 0;
+                    return Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        Text(avg.toStringAsFixed(1), style: const TextStyle(fontSize: 12)),
+                      ],
+                    );
+                  },
+                ),
                 if (recommended)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -288,11 +312,13 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: job.status != 'open'
+                        ? null
+                        : () async {
                       if (FirebaseAuth.instance.currentUser == null) {
                         await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const Scaffold(body: LoginPage())),
+                          MaterialPageRoute(builder: (_) => const AuthAccountPage(selectedIndex: 0)),
                         );
                         if (FirebaseAuth.instance.currentUser == null) return;
                       }
@@ -322,17 +348,19 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                         );
                       }
                     },
-                    child: const Text('Apply'),
+                    child: Text(job.status != 'open' ? 'Unavailable' : 'Apply'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () async {
+                    onPressed: job.status != 'open'
+                        ? null
+                        : () async {
                       if (FirebaseAuth.instance.currentUser == null) {
                         await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const Scaffold(body: LoginPage())),
+                          MaterialPageRoute(builder: (_) => const AuthAccountPage(selectedIndex: 0)),
                         );
                         if (FirebaseAuth.instance.currentUser == null) return;
                       }

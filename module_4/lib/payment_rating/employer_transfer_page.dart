@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import '../services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ============================================================================
 // THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
 // ============================================================================
 class EmployerTransferPage extends StatefulWidget {
-  const EmployerTransferPage({super.key});
+  final String? employeeEmail;
+  final String? employeeName;
+  final String? employeeId;
+  const EmployerTransferPage({super.key, this.employeeEmail, this.employeeName, this.employeeId});
 
   @override
   State<EmployerTransferPage> createState() => _EmployerTransferPageState();
@@ -76,36 +81,43 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.employeeEmail != null) _employeeEmailController.text = widget.employeeEmail!;
+    if (widget.employeeName != null) _employeeNameController.text = widget.employeeName!;
+    if (widget.employeeId != null) _employeeIDController.text = widget.employeeId!;
+  }
+
   // ========================================================================
   // SUBMIT TRANSFER FUNCTION - Runs when user clicks the Submit button
   // ========================================================================
-  void _submitTransfer() {
-    // Check if all form fields are valid (not empty, correct format, etc.)
-    if (_formKey.currentState!.validate()) {
-      // Extract the transfer amount
-      double? transferAmount = double.tryParse(_transferAmountController.text);
-      
-      // Check if transfer amount is not more than account balance
-      if (transferAmount != null && transferAmount > accountBalance) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Insufficient balance for this transfer')),
-        );
-        return;
-      }
-      
-      // If everything is valid, show a success message at the bottom
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transfer submitted success')),
-      );
-      // In a real app, you would send this data to your backend/database here
-      // This would include:
-      // - Employee name, email, ID
-      // - Transfer amount
-      // - Description/reason
-      // - Timestamp
-      // - Status (pending, completed, failed, etc.)
+  Future<void> _submitTransfer() async {
+    if (!_formKey.currentState!.validate()) return;
+    final toIdRaw = _employeeEmailController.text.isNotEmpty ? _employeeEmailController.text : _employeeIDController.text;
+    if (toIdRaw.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please provide employee email or ID')));
+      return;
     }
-    // If validation fails, error messages will show in the text fields automatically
+    final amount = double.tryParse(_transferAmountController.text) ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amount must be greater than 0')));
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final bal = uid.isEmpty ? 0 : await FirestoreService().getBalance(uid);
+    if (amount > bal) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance for this transfer')));
+      return;
+    }
+    await FirestoreService().recordTransfer(
+      toIdentifier: toIdRaw,
+      amount: amount,
+      description: _descriptionController.text,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer submitted success')));
+    Navigator.pop(context);
   }
 
   // ========================================================================
@@ -222,31 +234,72 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                     ),
                     const SizedBox(height: 8), // Add 8 pixels of space
                     
-                    // Balance amount text - Shows the available balance
-                    Text(
-                      'RM ${accountBalance.toStringAsFixed(2)}',
-                      // toStringAsFixed(2) = Convert number to text with 2 decimals
-                      // Example: 5000.5 becomes "5000.50"
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    FutureBuilder<double>(
+                      future: FirestoreService().getBalance(FirebaseAuth.instance.currentUser?.uid ?? ''),
+                      builder: (context, snapshot) {
+                        final bal = snapshot.data ?? accountBalance;
+                        return Text(
+                          'RM ${bal.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24), // Add space after the card
-              
-              // ============================================================
-              // FORM - Container for all the input fields
-              // ============================================================
-              Form(
-                // key = Use this to validate the entire form
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(height: 24), // Add space after the card
+          
+          // ============================================================
+          // FORM - Container for all the input fields
+          // ============================================================
+          Form(
+            // key = Use this to validate the entire form
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _employeeEmailController,
+                        decoration: _buildInputDecoration(hintText: 'Employee email (preferred)'),
+                        style: _inputTextStyle,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if ((value?.isEmpty ?? true) && (_employeeIDController.text.isEmpty)) {
+                            return 'Enter email or ID';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final email = _employeeEmailController.text.trim();
+                        if (email.isEmpty) return;
+                        final profile = await FirestoreService().getUserByEmail(email);
+                        if (profile != null) {
+                          setState(() {
+                            _employeeNameController.text = profile.displayName;
+                            _employeeIDController.text = profile.id;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee found')));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No user with that email')));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C)),
+                      child: const Text('Find', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                     
                     // ========================================================
                     // FIELD 1 - Employee Name
@@ -278,20 +331,15 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                     // ========================================================
                     // FIELD 2 - Employee Email
                     // ========================================================
-                    _buildLabel('Employee Email'),
+                    _buildLabel('Employee Name'),
                     const SizedBox(height: 8),
                     TextFormField(
-                      controller: _employeeEmailController,
-                      decoration: _buildInputDecoration(hintText: 'Enter employee email'),
+                      controller: _employeeNameController,
+                      decoration: _buildInputDecoration(hintText: 'Enter employee full name'),
                       style: _inputTextStyle,
-                      keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value?.isEmpty ?? true) {
-                          return 'Please enter employee email';
-                        }
-                        // Simple email validation
-                        if (!value!.contains('@')) {
-                          return 'Please enter a valid email';
+                          return 'Please enter employee name';
                         }
                         return null;
                       },
@@ -301,15 +349,15 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                     // ========================================================
                     // FIELD 3 - Employee ID
                     // ========================================================
-                    _buildLabel('Employee ID'),
+                    _buildLabel('Employee ID (uid)'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _employeeIDController,
                       decoration: _buildInputDecoration(hintText: 'Enter employee ID'),
                       style: _inputTextStyle,
                       validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Please enter employee ID';
+                        if ((value?.isEmpty ?? true) && (_employeeEmailController.text.isEmpty)) {
+                          return 'Please enter employee ID or email';
                         }
                         return null;
                       },
