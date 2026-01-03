@@ -78,6 +78,7 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
     }
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final bal = uid.isEmpty ? 0 : await _service.getBalance(uid);
+    if (!mounted) return;
     if (amount > bal) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance')));
       return;

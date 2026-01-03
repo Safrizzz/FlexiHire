@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
-import '../models/job.dart' as backend;
 
 class CompletionPage extends StatefulWidget {
   final String jobId;
@@ -61,7 +60,7 @@ class _CompletionPageState extends State<CompletionPage> {
                         amount: widget.pay.toDouble(),
                         description: 'Job completion payment',
                       );
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Paid')));
                     },
                     child: const Text('Pay', style: TextStyle(color: Colors.white)),
@@ -80,7 +79,7 @@ class _CompletionPageState extends State<CompletionPage> {
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
             onPressed: () async {
               await _service.updateJobStatus(widget.jobId, 'completed');
-              if (!mounted) return;
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job marked as completed')));
               Navigator.pop(context);
             },

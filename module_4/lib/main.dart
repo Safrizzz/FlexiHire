@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
 import 'payment_rating/withdraw_earning_page.dart';
 import 'payment_rating/employer_transfer_page.dart';
 import 'payment_rating/earnings_history_page.dart';
@@ -19,7 +20,9 @@ import 'payment_rating/employer_topup_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await FirestoreService().ensureUserProfile();
   runApp(const MyApp());
 }
@@ -32,7 +35,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const DiscoveryPage(),
+      // Check if user is logged in, show appropriate page
+      home: FirebaseAuth.instance.currentUser != null
+          ? const DiscoveryPage()
+          : const DiscoveryPage(),
       routes: {
         '/discovery': (context) => const DiscoveryPage(),
         '/my_jobs': (context) => const MyJobsPage(),

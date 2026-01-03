@@ -144,15 +144,11 @@ class _CompanyProfilePageState extends State<CompanyProfilePage> {
       ),
       bottomNavigationBar: CustomBottomNavBar(
         selectedIndex: _selectedNavIndex,
-        role: currentUserRole,
         onTap: (index) {
           setState(() {
             _selectedNavIndex = index;
           });
           NavigationHelper.navigate(context, index, currentUserRole);
-        },
-        onMiddleButtonPressed: () {
-          NavigationHelper.handleFab(context);
         },
       ),
     );

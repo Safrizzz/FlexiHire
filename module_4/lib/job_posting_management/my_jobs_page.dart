@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../models/application.dart';
 import '../components/bottom_nav_bar.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/job.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../authentication_profile/auth_tabs_page.dart';
@@ -88,7 +87,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
             itemBuilder: (context, index) {
               final app = apps[index];
               return FutureBuilder<Job?>(
-                future: _service.getJob(app.jobId),
+                future: _fetchJob(app.jobId),
                 builder: (context, jobSnap) {
                   final job = jobSnap.data;
                   final title = job?.title ?? 'Job';
@@ -153,7 +152,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
                                             employerId: job?.employerId ?? '',
                                             jobId: app.jobId,
                                           );
-                                          if (!mounted) return;
+                                          if (!context.mounted) return;
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(builder: (_) => MessagePage(chatId: chatId)),

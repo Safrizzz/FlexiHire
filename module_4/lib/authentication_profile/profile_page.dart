@@ -24,12 +24,10 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   int _selectedNavIndex = 3; // Profile tab
   final _service = FirestoreService();
-  UserProfile? _profile;
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _skillsCtrl = TextEditingController();
-  UserRole _role = UserRole.student;
 
   @override
   void initState() {
@@ -42,12 +40,10 @@ class _ProfilePageState extends State<ProfilePage> {
     if (uid == null) return;
     final p = await _service.getUserProfile(uid);
     setState(() {
-      _profile = p;
       _nameCtrl.text = p?.displayName ?? '';
       _phoneCtrl.text = p?.phone ?? '';
       _locationCtrl.text = p?.location ?? '';
       _skillsCtrl.text = (p?.skills ?? []).join(', ');
-      _role = p?.role ?? UserRole.student;
     });
   }
 
@@ -146,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                     Expanded(
                       child: StreamBuilder<List<Map<String, dynamic>>>(
-                        stream: _service.streamTransactionsForUser(user!.uid),
+                        stream: _service.streamTransactionsForUser(user.uid),
                         builder: (context, snapshot) {
                           double bal = 0;
                           final items = snapshot.data ?? [];
@@ -166,7 +162,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: StreamBuilder<UserProfile?>(
-                    stream: _service.streamUserProfile(user!.uid),
+                    stream: _service.streamUserProfile(user.uid),
                     builder: (context, snapRole) {
                       final role = snapRole.data?.role ?? UserRole.student;
                       return _miniStat(
@@ -339,10 +335,6 @@ class _ProfilePageState extends State<ProfilePage> {
         return Icon(filled ? Icons.star : Icons.star_border, color: Colors.amber, size: 20);
       }),
     );
-  }
-
-  Widget _buildProfileForm() {
-    return const SizedBox.shrink();
   }
 
   Widget _buildProfileHeader(UserProfile? p) {

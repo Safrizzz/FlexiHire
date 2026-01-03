@@ -106,6 +106,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
     }
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final bal = uid.isEmpty ? 0 : await FirestoreService().getBalance(uid);
+    if (!mounted) return;
     if (amount > bal) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance for this transfer')));
       return;
@@ -281,18 +282,21 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         final email = _employeeEmailController.text.trim();
                         if (email.isEmpty) return;
                         final profile = await FirestoreService().getUserByEmail(email);
-                        if (profile != null) {
+                        if (!mounted) return;
+                        final found = profile != null;
+                        if (found) {
                           setState(() {
                             _employeeNameController.text = profile.displayName;
                             _employeeIDController.text = profile.id;
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee found')));
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No user with that email')));
                         }
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(found ? 'Employee found' : 'No user with that email')),
+                        );
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C)),
                       child: const Text('Find', style: TextStyle(color: Colors.white)),

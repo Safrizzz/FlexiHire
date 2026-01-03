@@ -24,7 +24,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   DateTime? _endDate;
   List<String> _userSkills = [];
   String _userLocation = '';
-  bool _loadingProfile = true;
 
   @override
   void initState() {
@@ -42,17 +41,10 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         setState(() {
           _userSkills = List<String>.from((data['skills'] ?? []).map((e) => e.toString()));
           _userLocation = data['location']?.toString() ?? '';
-          _loadingProfile = false;
-        });
-      } else {
-        setState(() {
-          _loadingProfile = false;
         });
       }
     } catch (_) {
-      setState(() {
-        _loadingProfile = false;
-      });
+      // Handle error silently
     }
   }
 
@@ -290,7 +282,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                 const SizedBox(width: 12),
                 // Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
                 // const SizedBox(width: 4),
-                Text("RM " + job.pay.toString()),
+                Text('RM ${job.pay}'),
               ],
             ),
             const SizedBox(height: 8),

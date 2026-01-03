@@ -83,7 +83,7 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
                     final item = items[index];
                     final amountNum = (item['amount'] as num?)?.toDouble() ?? 0;
                     final title = _titleFor(item['type']?.toString() ?? '');
-                    int _toMillis(dynamic v) {
+                    int toMillis(dynamic v) {
                       if (v is String) return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
                       if (v is DateTime) return v.millisecondsSinceEpoch;
                       return 0;
@@ -95,7 +95,7 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
                       'amount': (amountNum >= 0 ? '+RM ' : '-RM ') + amountNum.abs().toStringAsFixed(2),
                       'amountNum': amountNum,
                       'date': item['createdAt'] ?? '',
-                      'ms': _toMillis(item['createdAt']),
+                      'ms': toMillis(item['createdAt']),
                       'color': amountNum >= 0 ? Colors.green : Colors.red,
                     };
                     return _buildTransactionCard(tx);

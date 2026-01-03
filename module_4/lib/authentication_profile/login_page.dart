@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/firestore_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,7 +13,6 @@ class _LoginPageState extends State<LoginPage> {
   final _passCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
-  final FirestoreService _service = FirestoreService();
   final _formKey = GlobalKey<FormState>();
 
   Future<void> _login() async {
@@ -63,10 +60,6 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _register() async {
-    // deprecated in LoginPage; use RegisterPage
   }
 
   @override

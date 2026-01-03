@@ -94,6 +94,7 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
             comment: _reviewCommentController.text,
           )
           .then((_) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Review submitted! Average Rating: ${getAverageRating().toStringAsFixed(2)}')),
         );
@@ -186,6 +187,7 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         final email = await showDialog<String>(
                           context: context,
                           builder: (ctx) {
@@ -202,15 +204,17 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
                         );
                         if (email == null || email.isEmpty) return;
                         final profile = await FirestoreService().getUserByEmail(email);
-                        if (profile != null) {
+                        if (!mounted) return;
+                        final found = profile != null;
+                        if (found) {
                           setState(() {
                             _employeeNameController.text = profile.displayName;
                             _employeeIDController.text = profile.id;
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee found')));
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No user with that email')));
                         }
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(found ? 'Employee found' : 'No user with that email')),
+                        );
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C)),
                       child: const Text('Find', style: TextStyle(color: Colors.white)),

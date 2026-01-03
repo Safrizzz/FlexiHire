@@ -251,6 +251,7 @@ class _SeedPageState extends State<SeedPage> {
       'createdAt': now,
     });
     setState(() => _loading = false);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer fixtures seeded')));
   }
 
@@ -280,6 +281,7 @@ class _SeedPageState extends State<SeedPage> {
       'createdAt': now,
     });
     setState(() => _loading = false);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student fixtures seeded')));
   }
 
@@ -319,6 +321,7 @@ class _SeedPageState extends State<SeedPage> {
       }
     }
     setState(() => _loading = false);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cleanup done for your demo data')));
   }
 }
