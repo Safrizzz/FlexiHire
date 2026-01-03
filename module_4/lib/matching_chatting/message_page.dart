@@ -4,7 +4,7 @@ import '../services/firestore_service.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../authentication_profile/login_page.dart';
+import '../authentication_profile/auth_tabs_page.dart';
 import '../models/user_profile.dart';
 import '../models/job.dart';
 
@@ -38,7 +38,7 @@ class _MessagePageState extends State<MessagePage> {
           backgroundColor: const Color(0xFF0F1E3C),
           elevation: 0,
           title: const Text(
-            'Login',
+            'Account',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -46,7 +46,7 @@ class _MessagePageState extends State<MessagePage> {
             ),
           ),
         ),
-        body: SingleChildScrollView(child: const LoginPage()),
+        body: const AuthTabsPage(),
         bottomNavigationBar: CustomBottomNavBar(
           selectedIndex: _selectedNavIndex,
           onTap: (index) {

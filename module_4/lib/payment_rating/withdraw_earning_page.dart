@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ============================================================================
 // THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
@@ -14,6 +16,7 @@ class WithdrawEarningPage extends StatefulWidget {
 // THIS IS THE PAGE STATE - Where all the code and UI happens
 // ============================================================================
 class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
+  final _service = FirestoreService();
   
   // ========================================================================
   // FORM KEY - This is like a remote control for the entire form
@@ -25,16 +28,16 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
   // TEXT CONTROLLERS - These catch and store whatever the user types
   // Think of them like mailboxes that hold the user's input
   // ========================================================================
-  final _nameController = TextEditingController(text: 'Eyman Safriz Safiruzialman');
+  final _nameController = TextEditingController();
   // Stores the name the user types (starts with 'Eyman...')
   
-  final _bankController = TextEditingController(text: 'Maybank - Malayan Banking Berhad');
+  final _bankController = TextEditingController();
   // Stores the bank name the user types
   
-  final _accountController = TextEditingController(text: '16424924393');
+  final _accountController = TextEditingController();
   // Stores the account number the user types
   
-  final _withdrawalController = TextEditingController(text: '0.00');
+  final _withdrawalController = TextEditingController();
   // Shared input text style so all fields match the RM prefix
   final TextStyle _inputTextStyle = const TextStyle(
     color: Color.fromARGB(255, 12, 12, 12),
@@ -66,16 +69,27 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
   // ========================================================================
   // SUBMIT WITHDRAWAL FUNCTION - Runs when user clicks the Submit button
   // ========================================================================
-  void _submitWithdrawal() {
-    // Check if all form fields are valid (not empty, correct format, etc.)
-    if (_formKey.currentState!.validate()) {
-      // If everything is valid, show a success message at the bottom
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Withdrawal request submitted')),
-      );
-      // In a real app, you would send this data to your backend/database here
+  Future<void> _submitWithdrawal() async {
+    if (!_formKey.currentState!.validate()) return;
+    final amount = double.tryParse(_withdrawalController.text) ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amount must be greater than 0')));
+      return;
     }
-    // If validation fails, error messages will show in the text fields automatically
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final bal = uid.isEmpty ? 0 : await _service.getBalance(uid);
+    if (amount > bal) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance')));
+      return;
+    }
+    await _service.recordWithdrawal(
+      amount: amount,
+      bankName: _bankController.text,
+      accountNumber: _accountController.text,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal request submitted')));
+    Navigator.pop(context);
   }
 
   // ========================================================================
@@ -197,15 +211,21 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
             const SizedBox(height: 8), // Add 8 pixels of space
 
             // Amount text - Shows the earnings amount
-            Text(
-              'RM ${availableEarnings.toStringAsFixed(2)}',
+            FutureBuilder<double>(
+              future: _service.getBalance(FirebaseAuth.instance.currentUser?.uid ?? ''),
               // toStringAsFixed(2) = Convert number to text with 2 decimals
               // Example: 150.5 becomes "150.50"
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-              ),
+              builder: (context, snapshot) {
+                final bal = snapshot.data ?? availableEarnings;
+                return Text(
+                  'RM ${bal.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -237,7 +257,7 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
                       controller: _nameController,
                       // controller connects this field to _nameController
                       // So whatever user types gets stored in _nameController
-                      decoration: _buildInputDecoration(),
+                      decoration: _buildInputDecoration().copyWith(hintText: 'Account holder name'),
                       // Use the styling from _buildInputDecoration() method
                       style: _inputTextStyle,
                       // Text color is black
@@ -262,7 +282,7 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _bankController,
-                      decoration: _buildInputDecoration(),
+                      decoration: _buildInputDecoration().copyWith(hintText: 'Bank name'),
                       style: _inputTextStyle,
                       validator: (value) {
                         if (value?.isEmpty ?? true) {
@@ -280,7 +300,7 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _accountController,
-                      decoration: _buildInputDecoration(),
+                      decoration: _buildInputDecoration().copyWith(hintText: 'Account number'),
                       style: _inputTextStyle,
                       validator: (value) {
                         if (value?.isEmpty ?? true) {

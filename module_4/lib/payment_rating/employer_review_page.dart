@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../services/firestore_service.dart';
 
 // ============================================================================
 // THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
 // ============================================================================
 class EmployerReviewPage extends StatefulWidget {
-  const EmployerReviewPage({super.key});
+  final String? employeeId;
+  final String? jobId;
+  const EmployerReviewPage({super.key, this.employeeId, this.jobId});
 
   @override
   State<EmployerReviewPage> createState() => _EmployerReviewPageState();
@@ -26,6 +29,7 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
   final _employeeNameController = TextEditingController();
   final _employeeIDController = TextEditingController();
   final _reviewCommentController = TextEditingController();
+  final _jobIdController = TextEditingController();
   
   // ========================================================================
   // RATING VARIABLES - Store the rating for each scale (0 to 5)
@@ -56,6 +60,13 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.employeeId != null) _employeeIDController.text = widget.employeeId!;
+    if (widget.jobId != null) _jobIdController.text = widget.jobId!;
+  }
+
   // ========================================================================
   // SUBMIT REVIEW FUNCTION - Runs when user clicks the Submit button
   // ========================================================================
@@ -71,11 +82,22 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
         return;
       }
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Review submitted! Average Rating: ${getAverageRating().toStringAsFixed(2)}')),
-      );
-      // In a real app, you would send this data to your backend/database here
+      FirestoreService()
+          .submitEmployerReview(
+            employeeId: _employeeIDController.text,
+            jobId: _jobIdController.text,
+            punctuality: punctualityRating,
+            efficiency: efficiencyRating,
+            communication: communicationRating,
+            teamwork: teamworkRating,
+            attitude: attitudeRating,
+            comment: _reviewCommentController.text,
+          )
+          .then((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Review submitted! Average Rating: ${getAverageRating().toStringAsFixed(2)}')),
+        );
+      });
     }
   }
 
@@ -151,31 +173,56 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
               children: [
                 
                 // ============================================================
-                // EMPLOYEE NAME FIELD
-                // ============================================================
-                _buildLabel('Employee Name'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _employeeNameController,
-                  decoration: _buildInputDecoration(hintText: 'Enter employee name'),
-                  style: const TextStyle(
-                    color: Color.fromARGB(255, 12, 12, 12),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Please enter employee name';
-                    }
-                    return null;
-                  },
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _employeeNameController,
+                        decoration: _buildInputDecoration(hintText: 'Employee name'),
+                        style: const TextStyle(color: Color.fromARGB(255, 12, 12, 12), fontSize: 16, fontWeight: FontWeight.w600),
+                        validator: (value) => (value?.isEmpty ?? true) ? 'Please enter employee name' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final email = await showDialog<String>(
+                          context: context,
+                          builder: (ctx) {
+                            final ctrl = TextEditingController();
+                            return AlertDialog(
+                              title: const Text('Find by email'),
+                              content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Employee email')),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                TextButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Find')),
+                              ],
+                            );
+                          },
+                        );
+                        if (email == null || email.isEmpty) return;
+                        final profile = await FirestoreService().getUserByEmail(email);
+                        if (profile != null) {
+                          setState(() {
+                            _employeeNameController.text = profile.displayName;
+                            _employeeIDController.text = profile.id;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee found')));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No user with that email')));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C)),
+                      child: const Text('Find', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
 
                 // ============================================================
                 // EMPLOYEE ID FIELD
                 // ============================================================
-                _buildLabel('Employee ID'),
+                _buildLabel('Employee ID (uid)'),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _employeeIDController,
@@ -186,13 +233,14 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
                     fontWeight: FontWeight.w600,
                   ),
                   validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Please enter employee ID';
-                    }
+                    if ((value?.isEmpty ?? true)) return 'Please enter employee ID';
                     return null;
                   },
                 ),
                 const SizedBox(height: 24),
+                
+                // (Job ID removed from form; jobId is optional and can be prefilled when opened from Hires)
+                const SizedBox(height: 8),
                 
                 // ============================================================
                 // RATING SCALES - 5 Categories with star rating

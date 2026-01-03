@@ -5,8 +5,9 @@ import '../components/bottom_nav_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/job.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../authentication_profile/login_page.dart';
+import '../authentication_profile/auth_tabs_page.dart';
 import '../matching_chatting/message_page.dart';
+import '../payment_rating/student_review_page.dart';
 
 class MyJobsPage extends StatefulWidget {
   const MyJobsPage({super.key});
@@ -37,7 +38,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
             ),
           ),
         ),
-        body: SingleChildScrollView(child: const LoginPage()),
+        body: const AuthTabsPage(),
         bottomNavigationBar: CustomBottomNavBar(
           selectedIndex: _selectedNavIndex,
           onTap: (index) {
@@ -146,18 +147,20 @@ class _MyJobsPageState extends State<MyJobsPage> {
                             children: [
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () async {
-                                    final chatId = await _service.createOrOpenChat(
-                                      employerId: job?.employerId ?? '',
-                                      jobId: app.jobId,
-                                    );
-                                    if (!mounted) return;
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => MessagePage(chatId: chatId)),
-                                    );
-                                  },
-                                  child: const Text('Chat'),
+                                  onPressed: (job?.status == 'open')
+                                      ? () async {
+                                          final chatId = await _service.createOrOpenChat(
+                                            employerId: job?.employerId ?? '',
+                                            jobId: app.jobId,
+                                          );
+                                          if (!mounted) return;
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(builder: (_) => MessagePage(chatId: chatId)),
+                                          );
+                                        }
+                                      : null,
+                                  child: Text(job?.status == 'open' ? 'Chat' : 'Chat Disabled'),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -171,6 +174,24 @@ class _MyJobsPageState extends State<MyJobsPage> {
                                   child: const Text('Withdraw'),
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              if (job?.status == 'completed')
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => StudentReviewPage(
+                                            employerId: job!.employerId,
+                                            jobId: app.jobId,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text('Rate Employer'),
+                                  ),
+                                ),
                             ],
                           ),
                         ),

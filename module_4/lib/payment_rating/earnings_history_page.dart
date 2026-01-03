@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ============================================================================
 // THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
@@ -14,40 +16,7 @@ class EarningsHistoryPage extends StatefulWidget {
 // THIS IS THE PAGE STATE - Where all the code and UI happens
 // ============================================================================
 class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
-  
-  // ========================================================================
-  // TRANSACTION DATA - List of all transactions
-  // Each transaction is a Map with: type, title, description, amount, date, color
-  // ========================================================================
-  final List<Map<String, dynamic>> transactions = [
-    {
-      'type': 'withdrawal_approved',
-      'title': 'Withdrawal Approved',
-      'description': 'Your Withdrawal Request has been approved.',
-      'amount': '-RM 428.47',
-      'amountNum': -428.47,
-      'date': '14 Oct 2024 11:24:20',
-      'color': Colors.green,
-    },
-    {
-      'type': 'withdrawal_requested',
-      'title': 'Withdrawal Requested',
-      'description': 'Your Withdrawal Request has been received and is currently pending approval.',
-      'amount': '-RM 428.47',
-      'amountNum': -428.47,
-      'date': '10 Oct 2024 16:33:39',
-      'color': Colors.blue,
-    },
-    {
-      'type': 'credited',
-      'title': 'Credited To Total Earnings',
-      'description': 'Thank you for being a Trooper! Your Earnings',
-      'amount': '+RM 80.00',
-      'amountNum': 80.00,
-      'date': '09 Oct 2024 15:20:15',
-      'color': Colors.green,
-    },
-  ];
+  final _service = FirestoreService();
 
   // ========================================================================
   // BUILD METHOD - This builds and displays the entire page UI
@@ -97,16 +66,41 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
           // TRANSACTION LIST - Shows list of transactions
           // ============================================================
           Expanded(
-            child: ListView.builder(
-              // itemCount = How many items to show in the list
-              itemCount: transactions.length,
-              padding: const EdgeInsets.all(12),
-              // itemBuilder = Builds each item in the list
-              itemBuilder: (context, index) {
-                // Get the current transaction
-                final item = transactions[index];
-                
-                return _buildTransactionCard(item);
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _service.streamTransactionsForUser(FirebaseAuth.instance.currentUser?.uid ?? ''),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final items = snapshot.data ?? [];
+                if (items.isEmpty) {
+                  return const Center(child: Text('No transactions yet'));
+                }
+                return ListView.builder(
+                  itemCount: items.length,
+                  padding: const EdgeInsets.all(12),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final amountNum = (item['amount'] as num?)?.toDouble() ?? 0;
+                    final title = _titleFor(item['type']?.toString() ?? '');
+                    int _toMillis(dynamic v) {
+                      if (v is String) return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
+                      if (v is DateTime) return v.millisecondsSinceEpoch;
+                      return 0;
+                    }
+                    final tx = {
+                      'type': item['type'],
+                      'title': title,
+                      'description': item['description'] ?? '',
+                      'amount': (amountNum >= 0 ? '+RM ' : '-RM ') + amountNum.abs().toStringAsFixed(2),
+                      'amountNum': amountNum,
+                      'date': item['createdAt'] ?? '',
+                      'ms': _toMillis(item['createdAt']),
+                      'color': amountNum >= 0 ? Colors.green : Colors.red,
+                    };
+                    return _buildTransactionCard(tx);
+                  },
+                );
               },
             ),
           ),
@@ -184,7 +178,7 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
           // ROW 3 - Date and Time
           // ============================================================
           Text(
-            transaction['date'],
+            _formatDate(transaction['date'], transaction['ms']),
             style: const TextStyle(
               color: Color.fromARGB(255, 128, 128, 128),
               fontSize: 12,
@@ -194,5 +188,30 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
         ],
       ),
     );
+  }
+
+  String _titleFor(String type) {
+    switch (type) {
+      case 'withdrawal':
+        return 'Withdrawal';
+      case 'debit':
+        return 'Transfer Sent';
+      case 'credit':
+        return 'Transfer Received';
+      case 'topup':
+        return 'Top Up';
+      default:
+        return 'Transaction';
+    }
+  }
+
+  String _formatDate(dynamic original, int ms) {
+    if (ms > 0) {
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      final date = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      return '$date $time';
+    }
+    return original?.toString() ?? '';
   }
 }

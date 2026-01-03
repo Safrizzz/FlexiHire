@@ -11,10 +11,16 @@ import 'job_posting_management/discovery_page.dart';
 import 'job_posting_management/my_jobs_page.dart';
 import 'matching_chatting/message_page.dart';
 import 'authentication_profile/profile_page.dart';
+import 'job_posting_management/jobs_posts.dart';
+import 'services/firestore_service.dart';
+import 'dev/seed_page.dart';
+import 'authentication_profile/edit_profile_page.dart';
+import 'payment_rating/employer_topup_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await FirestoreService().ensureUserProfile();
   runApp(const MyApp());
 }
 
@@ -32,6 +38,10 @@ class MyApp extends StatelessWidget {
         '/my_jobs': (context) => const MyJobsPage(),
         '/message': (context) => const MessagePage(),
         '/profile': (context) => const ProfilePage(),
+        '/employer_dashboard': (context) => const JobPostingPage(),
+        '/dev_seed': (context) => const SeedPage(),
+        '/edit_profile': (context) => const EditProfilePage(),
+        '/employer_topup': (context) => const EmployerTopUpPage(),
       },
     );
   }
