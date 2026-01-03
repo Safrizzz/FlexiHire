@@ -94,6 +94,7 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
             comment: _reviewCommentController.text,
           )
           .then((_) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Review submitted! Average Rating: ${getAverageRating().toStringAsFixed(2)}')),
         );
@@ -202,6 +203,7 @@ class _EmployerReviewPageState extends State<EmployerReviewPage> {
                         );
                         if (email == null || email.isEmpty) return;
                         final profile = await FirestoreService().getUserByEmail(email);
+                        if (!context.mounted) return;
                         if (profile != null) {
                           setState(() {
                             _employeeNameController.text = profile.displayName;

@@ -28,14 +28,14 @@ class Job {
   });
 
   factory Job.fromMap(String id, Map<String, dynamic> data) {
-    DateTime _toDate(dynamic v) {
+    DateTime toDate(dynamic v) {
       if (v == null) return DateTime.now();
       if (v is Timestamp) return v.toDate();
       if (v is DateTime) return v;
       if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
       return DateTime.now();
     }
-    num _toNum(dynamic v) {
+    num toNum(dynamic v) {
       if (v == null) return 0;
       if (v is num) return v;
       if (v is String) return num.tryParse(v) ?? 0;
@@ -47,13 +47,13 @@ class Job {
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       location: data['location'] ?? '',
-      pay: _toNum(data['pay']),
-      startDate: _toDate(data['startDate']),
-      endDate: _toDate(data['endDate']),
+      pay: toNum(data['pay']),
+      startDate: toDate(data['startDate']),
+      endDate: toDate(data['endDate']),
       skillsRequired:
           List<String>.from((data['skillsRequired'] ?? []).map((e) => e.toString())),
       employerId: data['employerId'] ?? '',
-      createdAt: _toDate(data['createdAt']),
+      createdAt: toDate(data['createdAt']),
       status: data['status']?.toString() ?? 'open',
     );
   }

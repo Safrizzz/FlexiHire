@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import '../models/user_role.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final Function(int)? onTap;
+  final UserRole? role;
+  final VoidCallback? onMiddleButtonPressed;
   
   const CustomBottomNavBar({
     super.key,
     this.selectedIndex = 0,
     this.onTap,
+    this.role,
+    this.onMiddleButtonPressed,
   });
 
   @override

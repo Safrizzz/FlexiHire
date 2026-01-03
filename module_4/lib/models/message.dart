@@ -14,7 +14,7 @@ class Message {
   });
 
   factory Message.fromMap(String id, Map<String, dynamic> data) {
-    DateTime _toDate(dynamic v) {
+    DateTime toDate(dynamic v) {
       if (v == null) return DateTime.now();
       if (v is Timestamp) return v.toDate();
       if (v is DateTime) return v;
@@ -25,7 +25,7 @@ class Message {
       id: id,
       senderId: data['senderId'] ?? '',
       text: data['text'] ?? '',
-      sentAt: _toDate(data['sentAt']),
+      sentAt: toDate(data['sentAt']),
     );
   }
 

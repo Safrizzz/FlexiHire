@@ -250,6 +250,7 @@ class _SeedPageState extends State<SeedPage> {
       'status': 'accepted',
       'createdAt': now,
     });
+    if (!mounted) return;
     setState(() => _loading = false);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer fixtures seeded')));
   }
@@ -279,6 +280,7 @@ class _SeedPageState extends State<SeedPage> {
       'status': 'accepted',
       'createdAt': now,
     });
+    if (!mounted) return;
     setState(() => _loading = false);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student fixtures seeded')));
   }
@@ -318,6 +320,7 @@ class _SeedPageState extends State<SeedPage> {
         await db.collection('employer_ratings').doc(d.id).delete();
       }
     }
+    if (!mounted) return;
     setState(() => _loading = false);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cleanup done for your demo data')));
   }
