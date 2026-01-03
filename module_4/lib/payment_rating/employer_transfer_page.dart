@@ -107,6 +107,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final bal = uid.isEmpty ? 0 : await FirestoreService().getBalance(uid);
     if (amount > bal) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance for this transfer')));
       return;
     }
@@ -115,7 +116,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
       amount: amount,
       description: _descriptionController.text,
     );
-    if (!mounted) return;
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer submitted success')));
     Navigator.pop(context);
   }
@@ -284,6 +285,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                         final email = _employeeEmailController.text.trim();
                         if (email.isEmpty) return;
                         final profile = await FirestoreService().getUserByEmail(email);
+                        if (!context.mounted) return;
                         if (profile != null) {
                           setState(() {
                             _employeeNameController.text = profile.displayName;

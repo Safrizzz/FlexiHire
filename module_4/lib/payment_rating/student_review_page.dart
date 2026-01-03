@@ -41,6 +41,7 @@ class _StudentReviewPageState extends State<StudentReviewPage> {
             comment: _commentController.text,
           )
           .then((_) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted')));
         Navigator.pop(context);
       });
@@ -125,4 +126,3 @@ class _StudentReviewPageState extends State<StudentReviewPage> {
     );
   }
 }
-

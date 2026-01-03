@@ -16,7 +16,7 @@ class Application {
   });
 
   factory Application.fromMap(String id, Map<String, dynamic> data) {
-    DateTime _toDate(dynamic v) {
+    DateTime toDate(dynamic v) {
       if (v == null) return DateTime.now();
       if (v is Timestamp) return v.toDate();
       if (v is DateTime) return v;
@@ -28,7 +28,7 @@ class Application {
       jobId: data['jobId'] ?? '',
       applicantId: data['applicantId'] ?? '',
       status: data['status'] ?? 'applied',
-      createdAt: _toDate(data['createdAt']),
+      createdAt: toDate(data['createdAt']),
     );
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../models/application.dart';
 import '../components/bottom_nav_bar.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/job.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../authentication_profile/auth_tabs_page.dart';
@@ -19,7 +18,6 @@ class MyJobsPage extends StatefulWidget {
 class _MyJobsPageState extends State<MyJobsPage> {
   int _selectedNavIndex = 1; // My Jobs tab
   final FirestoreService _service = FirestoreService();
-  final Map<String, Job> _jobCache = {};
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +151,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
                                             employerId: job?.employerId ?? '',
                                             jobId: app.jobId,
                                           );
-                                          if (!mounted) return;
+                                          if (!context.mounted) return;
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(builder: (_) => MessagePage(chatId: chatId)),
@@ -233,12 +231,6 @@ class _MyJobsPageState extends State<MyJobsPage> {
     }
   }
 
-  Future<Job?> _fetchJob(String jobId) async {
-    if (_jobCache.containsKey(jobId)) return _jobCache[jobId];
-    final job = await _service.getJob(jobId);
-    if (job != null) _jobCache[jobId] = job;
-    return job;
-  }
 
   Widget _statusChip(String status) {
     Color bg;

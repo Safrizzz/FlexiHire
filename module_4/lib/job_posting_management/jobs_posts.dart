@@ -6,7 +6,6 @@ import 'applicants_page.dart';
 import '../job_posting_management/hires_page.dart';
 import 'completion_page.dart';
 import 'job_details_page.dart';
-import 'micro_shift.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
 import '../models/job.dart' as backend;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'payment_rating/withdraw_earning_page.dart';
 import 'payment_rating/employer_transfer_page.dart';
 import 'payment_rating/earnings_history_page.dart';

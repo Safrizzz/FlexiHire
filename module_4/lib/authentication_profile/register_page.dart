@@ -112,7 +112,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const Text('Register', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F1E3C))),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<UserRole>(
-                  value: _selectedRole,
+                  initialValue: _selectedRole,
                   items: const [
                     DropdownMenuItem(value: UserRole.student, child: Text('Student')),
                     DropdownMenuItem(value: UserRole.employer, child: Text('Employer')),

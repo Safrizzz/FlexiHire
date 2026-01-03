@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/bottom_nav_bar.dart';
-import '../user_role.dart';
+import '../models/user_role.dart';
 import '../navigation_helper.dart';
 import 'company_model.dart';
 
@@ -15,6 +15,7 @@ class CompanyProfilePage extends StatefulWidget {
 
 class _CompanyProfilePageState extends State<CompanyProfilePage> {
   int _selectedNavIndex = 2; // Profile tab
+  final UserRole currentUserRole = UserRole.employer;
 
   @override
   Widget build(BuildContext context) {
