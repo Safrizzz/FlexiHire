@@ -24,111 +24,132 @@ class JobDetailsPage extends StatelessWidget {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          elevation: 3,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(job.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Text('Status: ', style: TextStyle(color: Colors.grey)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2F4F7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(job.status.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                _infoRow('Location', job.location),
-                const SizedBox(height: 8),
-                _infoRow('Pay Rate', 'RM ${job.payRate.toStringAsFixed(2)}/hr'),
-                const SizedBox(height: 14),
-
-                const Text('Description', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                Text(job.description, style: const TextStyle(color: Colors.black87)),
-
-                const SizedBox(height: 16),
-
-                const Text('Micro-shifts', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-
-                job.microShifts.isEmpty
-                    ? const Text(
-                        'No micro-shifts set.',
-                        style: TextStyle(color: Colors.grey),
-                      )
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: job.microShifts.map((shift) {
-                          return Container(
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 3,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(job.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Text('Status: ', style: TextStyle(color: Colors.grey)),
+                          Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF2F4F7),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Text(
-                              shift.toDisplay(),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          );
-                        }).toList(),
+                            child: Text(job.status.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                          ),
+                        ],
                       ),
-                const Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F1E3C),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () async {
-                          // EDIT -> reuse CreateJobPage
-                          final updated = await Navigator.push<Job?>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CreateJobPage(existingJob: job),
-                            ),
-                          );
+                      const SizedBox(height: 8),
 
-                          if (updated != null && context.mounted) {
-                            Navigator.pop(
-                              context,
-                              JobDetailsResult(JobDetailsAction.updated, updatedJob: updated),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        label: const Text('Edit', style: TextStyle(color: Colors.white)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        Navigator.pop(context, JobDetailsResult(JobDetailsAction.deleted));
-                      },
-                    ),
-                  ],
+                      _infoRow('Location', job.location),
+                      const SizedBox(height: 8),
+                      _infoRow('Pay Rate', 'RM ${job.payRate.toStringAsFixed(2)}/hr'),
+                      const SizedBox(height: 14),
+
+                      const Text('Description', style: TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Text(job.description, style: const TextStyle(color: Colors.black87)),
+
+                      const SizedBox(height: 16),
+
+                      const Text('Micro-shifts', style: TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+
+                      job.microShifts.isEmpty
+                          ? const Text(
+                              'No micro-shifts set.',
+                              style: TextStyle(color: Colors.grey),
+                            )
+                          : Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: job.microShifts.map((shift) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF2F4F7),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    shift.toDisplay(),
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Bottom action buttons
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F1E3C),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        // EDIT -> reuse CreateJobPage
+                        final updated = await Navigator.push<Job?>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CreateJobPage(existingJob: job),
+                          ),
+                        );
+
+                        if (updated != null && context.mounted) {
+                          Navigator.pop(
+                            context,
+                            JobDetailsResult(JobDetailsAction.updated, updatedJob: updated),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      label: const Text('Edit', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      Navigator.pop(context, JobDetailsResult(JobDetailsAction.deleted));
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

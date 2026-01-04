@@ -99,6 +99,7 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
                               applicantId: application.applicantId,
                               applicationId: application.id,
                               currentStatus: application.status,
+                              job: widget.job,
                             ),
                           ),
                         );

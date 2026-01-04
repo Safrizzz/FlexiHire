@@ -7,6 +7,7 @@ import '../services/firestore_service.dart';
 import '../services/location_service.dart';
 import '../matching_chatting/message_page.dart';
 import '../authentication_profile/auth_account_page.dart';
+import 'student_job_details_page.dart';
 
 class DiscoveryPage extends StatefulWidget {
   const DiscoveryPage({super.key});
@@ -530,46 +531,16 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                   child: ElevatedButton(
                     onPressed: job.status != 'open'
                         ? null
-                        : () async {
-                            if (FirebaseAuth.instance.currentUser == null) {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const AuthAccountPage(selectedIndex: 0),
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => StudentJobDetailsPage(
+                                  job: job,
+                                  distance: distance,
                                 ),
-                              );
-                              if (FirebaseAuth.instance.currentUser == null) {
-                                return;
-                              }
-                            }
-                            final result = await _service.applyToJob(job);
-                            if (!mounted) return;
-                            if (result == 'applied') {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Applied')),
-                              );
-                            } else if (result == 'reapplied') {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Re-applied')),
-                              );
-                            } else {
-                              await showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Already Applied'),
-                                  content: const Text(
-                                    'You have already applied to this job. Check My Jobs for status.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text('OK'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
+                              ),
+                            );
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0F1E3C),
@@ -580,12 +551,24 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                       ),
                       elevation: 0,
                     ),
-                    child: Text(
-                      job.status != 'open' ? 'Unavailable' : 'Apply Now',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          job.status != 'open'
+                              ? Icons.block
+                              : Icons.visibility_outlined,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          job.status != 'open' ? 'Unavailable' : 'View Details',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

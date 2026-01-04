@@ -366,6 +366,11 @@ class FirestoreService {
     await _db.collection('applications').doc(applicationId).update({'status': status});
   }
 
+  /// Delete an application completely so the student can re-apply
+  Future<void> deleteApplication(String applicationId) async {
+    await _db.collection('applications').doc(applicationId).delete();
+  }
+
   Future<void> submitEmployerReview({
     required String employeeId,
     required String jobId,
