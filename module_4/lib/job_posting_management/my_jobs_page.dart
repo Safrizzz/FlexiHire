@@ -803,41 +803,4 @@ class _MyJobsPageState extends State<MyJobsPage> {
     if (job != null) _jobCache[jobId] = job;
     return job;
   }
-
-  Widget _statusChip(String status) {
-    Color bg;
-    Color fg;
-    switch (status) {
-      case 'applied':
-        bg = const Color(0xFFE3F2FD);
-        fg = const Color(0xFF1976D2);
-        break;
-      case 'withdrawn':
-        bg = const Color(0xFFF5F5F5);
-        fg = const Color(0xFF616161);
-        break;
-      case 'accepted':
-        bg = const Color(0xFFE8F5E9);
-        fg = const Color(0xFF2E7D32);
-        break;
-      case 'rejected':
-        bg = const Color(0xFFFFEBEE);
-        fg = const Color(0xFFC62828);
-        break;
-      default:
-        bg = const Color(0xFFF5F5F5);
-        fg = const Color(0xFF616161);
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
 }
