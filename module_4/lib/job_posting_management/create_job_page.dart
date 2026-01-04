@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'job_model.dart';
 import 'micro_shift.dart';
+import '../services/location_service.dart';
+import '../components/location_picker.dart';
 
 class CreateJobPage extends StatefulWidget {
   final Job? existingJob;
@@ -17,9 +19,12 @@ class _CreateJobPageState extends State<CreateJobPage> {
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _companyController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final TextEditingController _payRateController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+
+  // Location fields
+  String _locationAddress = '';
+  GeoLocation? _geoLocation;
 
   final List<MicroShift> _microShifts = [];
   DateTime? _selectedDate;
@@ -36,7 +41,8 @@ class _CreateJobPageState extends State<CreateJobPage> {
     if (job != null) {
       _titleController.text = job.title;
       _companyController.text = job.company;
-      _locationController.text = job.location;
+      _locationAddress = job.location;
+      _geoLocation = job.geoLocation;
       _payRateController.text = job.payRate.toString();
       _descriptionController.text = job.description;
       _microShifts.addAll(job.microShifts);
@@ -47,7 +53,6 @@ class _CreateJobPageState extends State<CreateJobPage> {
   void dispose() {
     _titleController.dispose();
     _companyController.dispose();
-    _locationController.dispose();
     _payRateController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -101,9 +106,9 @@ class _CreateJobPageState extends State<CreateJobPage> {
 
   void _addMicroShift() {
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a date.')));
       return;
     }
 
@@ -122,15 +127,28 @@ class _CreateJobPageState extends State<CreateJobPage> {
     }
 
     final d = _selectedDate!;
-    final start = DateTime(d.year, d.month, d.day, _startTime!.hour, _startTime!.minute);
-    final end = DateTime(d.year, d.month, d.day, _endTime!.hour, _endTime!.minute);
+    final start = DateTime(
+      d.year,
+      d.month,
+      d.day,
+      _startTime!.hour,
+      _startTime!.minute,
+    );
+    final end = DateTime(
+      d.year,
+      d.month,
+      d.day,
+      _endTime!.hour,
+      _endTime!.minute,
+    );
 
     final shift = MicroShift(start: start, end: end);
 
     setState(() {
       // prevent exact duplicates
-      final exists = _microShifts.any((s) =>
-          s.start == shift.start && s.end == shift.end);
+      final exists = _microShifts.any(
+        (s) => s.start == shift.start && s.end == shift.end,
+      );
       if (!exists) _microShifts.add(shift);
       _selectedDate = null;
       _startTime = null;
@@ -165,13 +183,60 @@ class _CreateJobPageState extends State<CreateJobPage> {
               const SizedBox(height: 16),
               _buildTextField(_companyController, 'Company'),
               const SizedBox(height: 16),
-              _buildTextField(_locationController, 'Location'),
+
+              // Location picker with geo-coding
+              LocationPickerField(
+                initialAddress: _locationAddress,
+                initialGeoLocation: _geoLocation,
+                labelText: 'Job Location',
+                hintText: 'Search for job location...',
+                onLocationChanged: (address, geoLocation) {
+                  setState(() {
+                    _locationAddress = address;
+                    _geoLocation = geoLocation;
+                  });
+                },
+              ),
+              if (_geoLocation != null && _geoLocation!.isValid) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green.shade700,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Location verified: ${_geoLocation!.latitude.toStringAsFixed(4)}, ${_geoLocation!.longitude.toStringAsFixed(4)}',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _payRateController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
@@ -257,7 +322,9 @@ class _CreateJobPageState extends State<CreateJobPage> {
                 child: OutlinedButton(
                   onPressed: _pickDate,
                   child: Text(
-                    _selectedDate == null ? 'Pick date' : _fmtDate(_selectedDate!),
+                    _selectedDate == null
+                        ? 'Pick date'
+                        : _fmtDate(_selectedDate!),
                   ),
                 ),
               ),
@@ -265,7 +332,9 @@ class _CreateJobPageState extends State<CreateJobPage> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: _pickStartTime,
-                  child: Text(_startTime == null ? 'Start time' : _fmt(_startTime!)),
+                  child: Text(
+                    _startTime == null ? 'Start time' : _fmt(_startTime!),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -277,7 +346,6 @@ class _CreateJobPageState extends State<CreateJobPage> {
               ),
             ],
           ),
-
 
           const SizedBox(height: 10),
 
@@ -316,15 +384,25 @@ class _CreateJobPageState extends State<CreateJobPage> {
   void _saveJob() {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate location
+    if (_locationAddress.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a job location.')),
+      );
+      return;
+    }
+
     final double parsedPayRate =
         double.tryParse(_payRateController.text) ?? 0.0;
 
     final Job jobToReturn = Job(
-      id: widget.existingJob?.id ??
+      id:
+          widget.existingJob?.id ??
           DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text,
       company: _companyController.text,
-      location: _locationController.text,
+      location: _locationAddress,
+      geoLocation: _geoLocation,
       payRate: parsedPayRate,
       description: _descriptionController.text,
       microShifts: List<MicroShift>.from(_microShifts),

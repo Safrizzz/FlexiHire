@@ -9,7 +9,6 @@ import 'auth_tabs_page.dart';
 import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 import '../models/user_role.dart';
-import '../job_posting_management/jobs_posts.dart';
 import '../dev/seed_page.dart';
 import 'edit_profile_page.dart';
 import 'package:flutter/foundation.dart';
@@ -50,31 +49,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 250, 250, 251),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1E3C),
-        elevation: 0,
-        title: const Text(
-          'Profile',
-          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              final user = snapshot.data;
-              if (user == null) return const SizedBox.shrink();
-              return IconButton(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                },
-                icon: const Icon(Icons.logout, color: Colors.white),
-                tooltip: 'Logout',
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF8F9FC),
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
@@ -82,177 +57,120 @@ class _ProfilePageState extends State<ProfilePage> {
           if (user == null) {
             return const AuthTabsPage();
           }
-          return SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              StreamBuilder<UserProfile?>(
-                stream: _service.streamUserProfile(FirebaseAuth.instance.currentUser!.uid),
-                builder: (context, snap) {
-                  final p = snap.data;
-                  return Column(
+          return CustomScrollView(
+            slivers: [
+              // Modern App Bar with gradient
+              SliverAppBar(
+                expandedHeight: 120,
+                pinned: true,
+                backgroundColor: const Color(0xFF0F1E3C),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0F1E3C), Color(0xFF1A3A5C)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+                  title: const Text(
+                    'Profile',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  centerTitle: true,
+                ),
+                actions: [
+                  IconButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                    },
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white70,
+                    ),
+                    tooltip: 'Logout',
+                  ),
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildProfileHeader(p),
-                      const SizedBox(height: 16),
-                      _buildInfoCard(p),
-                    ],
-                  );
-                },
-              ),
-              // Hero summary card
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F1E3C), Color(0xFF1D2F4F)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x330F1E3C),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
-                          'Earnings Overview',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Icon(Icons.info_outline, color: Color(0xFF9FB4FF), size: 18),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                    Expanded(
-                      child: StreamBuilder<List<Map<String, dynamic>>>(
-                        stream: _service.streamTransactionsForUser(user.uid),
-                        builder: (context, snapshot) {
-                          double bal = 0;
-                          final items = snapshot.data ?? [];
-                          for (final m in items) {
-                            final v = m['amount'];
-                            if (v is num) bal += v.toDouble();
-                            if (v is String) bal += double.tryParse(v) ?? 0;
-                          }
-                          return _miniStat(
-                            title: 'Available',
-                            value: 'RM ${bal.toStringAsFixed(2)}',
-                            valueColor: const Color(0xFF0F1E3C),
-                          );
+                      // Profile Card
+                      StreamBuilder<UserProfile?>(
+                        stream: _service.streamUserProfile(user.uid),
+                        builder: (context, snap) {
+                          final p = snap.data;
+                          return _buildModernProfileCard(p);
                         },
                       ),
-                    ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StreamBuilder<UserProfile?>(
-                    stream: _service.streamUserProfile(user.uid),
-                    builder: (context, snapRole) {
-                      final role = snapRole.data?.role ?? UserRole.student;
-                      return _miniStat(
-                        title: 'Role',
-                        value: role == UserRole.employer ? 'Employer' : 'Student',
-                        valueColor: const Color(0xFFE05A1C),
-                      );
-                    },
+                      const SizedBox(height: 24),
+
+                      // Balance Card
+                      StreamBuilder<UserProfile?>(
+                        stream: _service.streamUserProfile(user.uid),
+                        builder: (context, snapRole) {
+                          final role = snapRole.data?.role ?? UserRole.student;
+                          return _buildBalanceCard(user.uid, role);
+                        },
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Quick Actions Section
+                      StreamBuilder<UserProfile?>(
+                        stream: _service.streamUserProfile(user.uid),
+                        builder: (context, snapRole) {
+                          final role = snapRole.data?.role ?? UserRole.student;
+                          return _buildQuickActions(role);
+                        },
+                      ),
+
+                      // Ratings section for students
+                      StreamBuilder<UserProfile?>(
+                        stream: _service.streamUserProfile(user.uid),
+                        builder: (context, snapRole) {
+                          final role = snapRole.data?.role ?? UserRole.student;
+                          if (role == UserRole.student) {
+                            return Column(
+                              children: [
+                                const SizedBox(height: 28),
+                                _buildModernRatingsCard(),
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+
+                      // Debug section
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 20),
+                        _buildMinimalActionTile(
+                          icon: Icons.developer_mode,
+                          label: 'Seed Demo Data',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SeedPage()),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                    ],
                   ),
                 ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Action buttons in a slim vertical stack
-              StreamBuilder<UserProfile?>(
-                stream: _service.streamUserProfile(user.uid),
-                builder: (context, snapRole) {
-                  final role = snapRole.data?.role ?? UserRole.student;
-                  return Column(
-                    children: [
-                      _buildActionButton(
-                        label: 'Earnings History',
-                        color: const Color(0xFFF6D2B4),
-                        textColor: const Color(0xFFCC4A0F),
-                        onTap: () => _navigateToPage(0),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildActionButton(
-                        label: 'Withdraw Earnings',
-                        color: const Color(0xFFF6D2B4),
-                        textColor: const Color(0xFFCC4A0F),
-                        onTap: () => _navigateToPage(1),
-                      ),
-                      const SizedBox(height: 12),
-                      if (role == UserRole.employer)
-                        _buildActionButton(
-                          label: 'Top Up Balance',
-                          color: const Color(0xFFF6D2B4),
-                          textColor: const Color(0xFFCC4A0F),
-                          onTap: () => Navigator.pushNamed(context, '/employer_topup'),
-                        ),
-                      if (role == UserRole.employer) const SizedBox(height: 12),
-                      _buildActionButton(
-                        label: 'Transfer',
-                        color: const Color(0xFFC8D4FF),
-                        textColor: const Color(0xFF2E3AD6),
-                        onTap: () => _navigateToPage(2),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildActionButton(
-                        label: 'Rating',
-                        color: const Color(0xFFC8D4FF),
-                        textColor: const Color(0xFF2E3AD6),
-                        onTap: () => _navigateToPage(3),
-                      ),
-                      const SizedBox(height: 12),
-                      if (role == UserRole.employer)
-                        _buildActionButton(
-                          label: 'Employer Dashboard',
-                          color: const Color(0xFFC8D4FF),
-                          textColor: const Color(0xFF2E3AD6),
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const JobPostingPage()));
-                          },
-                        ),
-                      if (role == UserRole.student) ...[
-                        const SizedBox(height: 20),
-                        _buildRatingsOverview(),
-                      ],
-                      const SizedBox(height: 12),
-                      if (kDebugMode)
-                        _buildActionButton(
-                          label: 'Seed Demo Data',
-                          color: const Color(0xFFF2F4F7),
-                          textColor: const Color(0xFF1F2A44),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SeedPage())),
-                        ),
-                    ],
-                  );
-                },
               ),
             ],
-          ),
-        ),
-      );
+          );
         },
       ),
       bottomNavigationBar: CustomBottomNavBar(
@@ -267,64 +185,476 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildRatingsOverview() {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    if (uid.isEmpty) return const SizedBox.shrink();
+  Widget _buildModernProfileCard(UserProfile? p) {
+    final initials = (p?.displayName.isNotEmpty == true)
+        ? p!.displayName
+              .trim()
+              .split(' ')
+              .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
+              .take(2)
+              .join()
+        : (p?.email.isNotEmpty == true ? p!.email[0].toUpperCase() : '?');
+    final roleText = (p?.role == UserRole.employer) ? 'Employer' : 'Student';
+    final roleColor = (p?.role == UserRole.employer)
+        ? const Color(0xFF7C3AED)
+        : const Color(0xFF0891B2);
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 6))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Avatar with gradient border
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [roleColor, roleColor.withOpacity(0.5)],
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 32,
+                  backgroundColor: const Color(0xFF0F1E3C),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p?.displayName ?? 'Your Name',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      p?.email ?? '',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Role Badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: roleColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  roleText,
+                  style: TextStyle(
+                    color: roleColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Edit Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final saved = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfilePage()),
+                );
+                if (saved == true) _loadProfile();
+              },
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: BorderSide(color: Colors.grey.shade300),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit Profile'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Expanded(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey.shade500),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(String uid, UserRole role) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F1E3C), Color(0xFF1A3A5C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F1E3C).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Your Ratings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          FutureBuilder<double>(
-            future: _service.getEmployeeAverageRating(uid),
-            builder: (context, snapshot) {
-              final avg = snapshot.data ?? 0;
-              return Row(
-                children: [
-                  Text(avg.toStringAsFixed(1), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 8),
-                  _buildStars(avg),
-                ],
-              );
-            },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                role == UserRole.employer
+                    ? 'Wallet Balance'
+                    : 'Available Earnings',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _service.streamEmployeeRatings(uid),
+            stream: _service.streamTransactionsForUser(uid),
             builder: (context, snapshot) {
-              final ratings = snapshot.data ?? [];
-              final displayed = ratings.take(5).toList();
-              if (displayed.isEmpty) {
-                return const Text('No reviews yet', style: TextStyle(color: Colors.grey));
+              double bal = 0;
+              final items = snapshot.data ?? [];
+              for (final m in items) {
+                final v = m['amount'];
+                if (v is num) bal += v.toDouble();
+                if (v is String) bal += double.tryParse(v) ?? 0;
               }
-              return Column(
-                children: displayed.map((r) {
-                  final avg = (r['average'] as num?)?.toDouble() ?? 0;
-                  final comment = r['comment']?.toString() ?? '';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Row(
-                      children: [
-                        _buildStars(avg),
-                        const SizedBox(width: 8),
-                        Text(avg.toStringAsFixed(1)),
-                      ],
-                    ),
-                    subtitle: Text(comment),
-                  );
-                }).toList(),
+              return Text(
+                'RM ${bal.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -1,
+                ),
               );
             },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuickActions(UserRole role) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (role == UserRole.student) ...[
+          _buildMinimalActionTile(
+            icon: Icons.history_rounded,
+            label: 'Earnings History',
+            subtitle: 'View your earning records',
+            onTap: () => _navigateToPage(0),
+          ),
+          const SizedBox(height: 12),
+          _buildMinimalActionTile(
+            icon: Icons.account_balance_outlined,
+            label: 'Withdraw Earnings',
+            subtitle: 'Transfer to your bank',
+            onTap: () => _navigateToPage(1),
+          ),
+        ],
+        if (role == UserRole.employer) ...[
+          _buildMinimalActionTile(
+            icon: Icons.send_rounded,
+            label: 'Transfer Payment',
+            subtitle: 'Pay your workers',
+            onTap: () => _navigateToPage(2),
+          ),
+          const SizedBox(height: 12),
+          _buildMinimalActionTile(
+            icon: Icons.star_outline_rounded,
+            label: 'Rate Workers',
+            subtitle: 'Give feedback to employees',
+            onTap: () => _navigateToPage(3),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMinimalActionTile({
+    required IconData icon,
+    required String label,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F1E3C).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: const Color(0xFF0F1E3C), size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernRatingsCard() {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Your Ratings',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FutureBuilder<double>(
+                future: _service.getEmployeeAverageRating(uid),
+                builder: (context, snapshot) {
+                  final avg = snapshot.data ?? 0;
+                  return Row(
+                    children: [
+                      Text(
+                        avg.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildStars(avg),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Average rating',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              Divider(color: Colors.grey.shade100),
+              const SizedBox(height: 12),
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _service.streamEmployeeRatings(uid),
+                builder: (context, snapshot) {
+                  final ratings = snapshot.data ?? [];
+                  final displayed = ratings.take(3).toList();
+                  if (displayed.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'No reviews yet',
+                          style: TextStyle(color: Colors.grey.shade400),
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: displayed.map((r) {
+                      final avg = (r['average'] as num?)?.toDouble() ?? 0;
+                      final comment = r['comment']?.toString() ?? '';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 14,
+                                    color: Colors.amber,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    avg.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                comment.isNotEmpty ? comment : 'No comment',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -332,201 +662,12 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       children: List.generate(5, (i) {
         final filled = i + 1 <= rating.round();
-        return Icon(filled ? Icons.star : Icons.star_border, color: Colors.amber, size: 20);
+        return Icon(
+          filled ? Icons.star_rounded : Icons.star_outline_rounded,
+          color: Colors.amber,
+          size: 20,
+        );
       }),
-    );
-  }
-
-  Widget _buildProfileHeader(UserProfile? p) {
-    final initials = (p?.displayName.isNotEmpty == true)
-        ? p!.displayName.trim().split(' ').map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').take(2).join()
-        : (p?.email.isNotEmpty == true ? p!.email[0].toUpperCase() : '?');
-    final roleText = (p?.role == UserRole.employer) ? 'Employer' : 'Student';
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: const Color(0xFF0F1E3C),
-            child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(p?.displayName ?? 'Your Name', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F1E3C))),
-                const SizedBox(height: 4),
-                Text(p?.email ?? '', style: const TextStyle(color: Color(0xFF4B5563))),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(20)),
-                      child: Text(roleText, style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 8),
-                    if ((p?.location ?? '').isNotEmpty)
-                      Row(
-                        children: [
-                          const Icon(Icons.place, size: 16, color: Color(0xFF6B7280)),
-                          const SizedBox(width: 4),
-                          Text(p!.location, style: const TextStyle(color: Color(0xFF6B7280))),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 40,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const EditProfilePage()));
-                if (saved == true) _loadProfile();
-              },
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('Edit'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(UserProfile? p) {
-    final skills = p?.skills ?? [];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.phone, size: 18, color: Color(0xFF6B7280)),
-              const SizedBox(width: 6),
-              Text(p?.phone.isNotEmpty == true ? p!.phone : 'Not set', style: const TextStyle(color: Color(0xFF374151))),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.place, size: 18, color: Color(0xFF6B7280)),
-              const SizedBox(width: 6),
-              Text(p?.location.isNotEmpty == true ? p!.location : 'Not set', style: const TextStyle(color: Color(0xFF374151))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text('Skills', style: TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          if (skills.isEmpty)
-            const Text('No skills provided', style: TextStyle(color: Color(0xFF6B7280)))
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: skills.map((s) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(20)),
-                  child: Text(s),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required String label,
-    required Color color,
-    required Color textColor,
-    required VoidCallback onTap,
-    double height = 72,
-  }) {
-    return SizedBox(
-      height: height,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ).copyWith(color: textColor),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _miniStat({
-    required String title,
-    required String value,
-    required Color valueColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-              BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 8)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-                  fontSize: 12,
-                  color: const Color(0xFF1F2A44),
-                  fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -536,36 +677,28 @@ class _ProfilePageState extends State<ProfilePage> {
         // Earnings History
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const EarningsHistoryPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const EarningsHistoryPage()),
         );
         break;
       case 1:
         // Withdraw Earnings
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const WithdrawEarningPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const WithdrawEarningPage()),
         );
         break;
       case 2:
         // Transfer
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const EmployerTransferPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const EmployerTransferPage()),
         );
         break;
       case 3:
         // Rating
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const EmployerReviewPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const EmployerReviewPage()),
         );
         break;
     }

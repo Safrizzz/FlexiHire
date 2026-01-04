@@ -44,6 +44,10 @@ class FirestoreService {
       final jobs = s.docs.map((d) => Job.fromMap(d.id, d.data())).toList();
       return jobs.where((job) {
         bool ok = true;
+        // Only show open jobs in discovery
+        if (job.status != 'open') {
+          return false;
+        }
         if (location != null && location.isNotEmpty) {
           final qLoc = location.toLowerCase().trim();
           final jLoc = job.location.toLowerCase().trim();

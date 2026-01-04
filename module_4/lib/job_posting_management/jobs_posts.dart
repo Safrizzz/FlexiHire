@@ -32,10 +32,9 @@ class _JobPostingPageState extends State<JobPostingPage> {
         title: const Text(
           'My Job Postings',
           style: TextStyle(
-            color: Colors.white, 
+            color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
-          
           ),
         ),
       ),
@@ -108,13 +107,16 @@ class _JobPostingPageState extends State<JobPostingPage> {
               onOpenDetails: () async {
                 final result = await Navigator.push<JobDetailsResult>(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => JobDetailsPage(job: job),
-                  ),
+                  MaterialPageRoute(builder: (_) => JobDetailsPage(job: job)),
                 );
                 if (result == null) return;
-                if (result.action == JobDetailsAction.updated && result.updatedJob != null) {
-                  final updatedBe = _toBackendJob(result.updatedJob!, uid, beId: beJob.id);
+                if (result.action == JobDetailsAction.updated &&
+                    result.updatedJob != null) {
+                  final updatedBe = _toBackendJob(
+                    result.updatedJob!,
+                    uid,
+                    beId: beJob.id,
+                  );
                   await _service.updateJob(updatedBe);
                 } else if (result.action == JobDetailsAction.deleted) {
                   await _service.deleteJob(beJob.id);
@@ -123,7 +125,9 @@ class _JobPostingPageState extends State<JobPostingPage> {
               onApplicants: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => ApplicantsPage(job: job)),
+                  MaterialPageRoute(
+                    builder: (context) => ApplicantsPage(job: job),
+                  ),
                 );
               },
               onHires: () {
@@ -141,7 +145,10 @@ class _JobPostingPageState extends State<JobPostingPage> {
               onComplete: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => CompletionPage(jobId: beJob.id, pay: beJob.pay)),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        CompletionPage(jobId: beJob.id, pay: beJob.pay),
+                  ),
                 );
               },
             );
@@ -154,18 +161,31 @@ class _JobPostingPageState extends State<JobPostingPage> {
   backend.Job _toBackendJob(Job job, String employerId, {String? beId}) {
     DateTime? earliest;
     DateTime? latest;
+    String? startTimeStr;
+    String? endTimeStr;
     for (final s in job.microShifts) {
-      if (earliest == null || s.start.isBefore(earliest)) earliest = s.start;
-      if (latest == null || s.end.isAfter(latest)) latest = s.end;
+      if (earliest == null || s.start.isBefore(earliest)) {
+        earliest = s.start;
+        startTimeStr =
+            '${s.start.hour.toString().padLeft(2, '0')}:${s.start.minute.toString().padLeft(2, '0')}';
+      }
+      if (latest == null || s.end.isAfter(latest)) {
+        latest = s.end;
+        endTimeStr =
+            '${s.end.hour.toString().padLeft(2, '0')}:${s.end.minute.toString().padLeft(2, '0')}';
+      }
     }
     return backend.Job(
       id: beId ?? '',
       title: job.title,
       description: job.description,
       location: job.location,
+      geoLocation: job.geoLocation, // Pass geo location to backend
       pay: job.payRate,
       startDate: earliest ?? DateTime.now(),
       endDate: latest ?? DateTime.now(),
+      startTime: startTimeStr,
+      endTime: endTimeStr,
       skillsRequired: const [],
       employerId: employerId,
       createdAt: DateTime.now(),
@@ -179,6 +199,7 @@ class _JobPostingPageState extends State<JobPostingPage> {
       title: beJob.title,
       company: '',
       location: beJob.location,
+      geoLocation: beJob.geoLocation, // Pass geo location to UI
       payRate: beJob.pay.toDouble(),
       description: beJob.description,
       microShifts: const [],
@@ -242,90 +263,142 @@ class JobCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(job.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                job.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 6),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F4F7),
-                      borderRadius: BorderRadius.circular(20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                    child: Text(job.status.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  ),
-                ],
-              ),
-              Text(job.description, style: const TextStyle(color: Colors.black54)),
-              const SizedBox(height: 6),
-              Text('${job.location} • RM ${job.payRate}/hr',
-                style: const TextStyle(color: Colors.black54)),
-
-            if (job.microShifts.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Micro-shifts',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: job.microShifts.map((shift) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF2F4F7),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      shift.toDisplay(),
-                      style: const TextStyle(fontSize: 12),
+                      job.status.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  );
-                }).toList(),
-              ),
-            ],
-
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C), minimumSize: const Size(100, 40)),
-                  onPressed: onOpenDetails,
-                  child: const Text('Edit', style: TextStyle(color: Colors.white)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C), minimumSize: const Size(120, 40)),
-                  onPressed: onApplicants,
-                  child: const Text('Applicants', style: TextStyle(color: Colors.white)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size(100, 40)),
-                  onPressed: onHires,
-                  child: const Text('Hires', style: TextStyle(color: Colors.white)),
-                ),
-                IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: onDelete),
-                if (onComplete != null)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), minimumSize: const Size(120, 40)),
-                    onPressed: onComplete,
-                    child: const Text('Complete', style: TextStyle(color: Colors.white)),
                   ),
-                PopupMenuButton<String>(
-                  onSelected: (value) => onSetStatus?.call(value),
-                  itemBuilder: (ctx) => const [
-                    PopupMenuItem(value: 'open', child: Text('Open')),
-                    PopupMenuItem(value: 'closed', child: Text('Close')),
-                    PopupMenuItem(value: 'completed', child: Text('Completed')),
-                  ],
-                  icon: const Icon(Icons.more_vert),
+                ],
+              ),
+              Text(
+                job.description,
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${job.location} • RM ${job.payRate}/hr',
+                style: const TextStyle(color: Colors.black54),
+              ),
+
+              if (job.microShifts.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Micro-shifts',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: job.microShifts.map((shift) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F4F7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        shift.toDisplay(),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
-            ),
+
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F1E3C),
+                      minimumSize: const Size(100, 40),
+                    ),
+                    onPressed: onOpenDetails,
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F1E3C),
+                      minimumSize: const Size(120, 40),
+                    ),
+                    onPressed: onApplicants,
+                    child: const Text(
+                      'Applicants',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      minimumSize: const Size(100, 40),
+                    ),
+                    onPressed: onHires,
+                    child: const Text(
+                      'Hires',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: onDelete,
+                  ),
+                  if (onComplete != null)
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E7D32),
+                        minimumSize: const Size(120, 40),
+                      ),
+                      onPressed: onComplete,
+                      child: const Text(
+                        'Complete',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) => onSetStatus?.call(value),
+                    itemBuilder: (ctx) => const [
+                      PopupMenuItem(value: 'open', child: Text('Open')),
+                      PopupMenuItem(value: 'closed', child: Text('Close')),
+                      PopupMenuItem(
+                        value: 'completed',
+                        child: Text('Completed'),
+                      ),
+                    ],
+                    icon: const Icon(Icons.more_vert),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

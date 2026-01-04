@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../components/bottom_nav_bar.dart';
 import '../models/job.dart';
 import '../services/firestore_service.dart';
+import '../services/location_service.dart';
 import '../matching_chatting/message_page.dart';
 import '../authentication_profile/auth_account_page.dart';
 
@@ -24,6 +25,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   DateTime? _endDate;
   List<String> _userSkills = [];
   String _userLocation = '';
+  GeoLocation?
+  _userGeoLocation; // User's geo coordinates for distance calculation
 
   @override
   void initState() {
@@ -35,17 +38,42 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        final doc =
-            await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
         final data = doc.data() ?? {};
+
+        // Parse geo location
+        GeoLocation? geoLoc;
+        if (data['geoLocation'] != null && data['geoLocation'] is Map) {
+          geoLoc = GeoLocation.fromMap(
+            Map<String, dynamic>.from(data['geoLocation']),
+          );
+        }
+
         setState(() {
-          _userSkills = List<String>.from((data['skills'] ?? []).map((e) => e.toString()));
+          _userSkills = List<String>.from(
+            (data['skills'] ?? []).map((e) => e.toString()),
+          );
           _userLocation = data['location']?.toString() ?? '';
+          _userGeoLocation = geoLoc;
         });
       }
     } catch (_) {
       // Handle error silently
     }
+  }
+
+  /// Calculate distance between user and job location
+  double? _calculateJobDistance(Job job) {
+    if (_userGeoLocation == null || !_userGeoLocation!.isValid) return null;
+    if (job.geoLocation == null || !job.geoLocation!.isValid) return null;
+
+    return LocationService.calculateDistance(
+      _userGeoLocation!,
+      job.geoLocation!,
+    );
   }
 
   @override
@@ -70,7 +98,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           Expanded(
             child: StreamBuilder<List<Job>>(
               stream: _service.streamJobs(
-                location: _locationCtrl.text.isEmpty ? null : _locationCtrl.text,
+                location: _locationCtrl.text.isEmpty
+                    ? null
+                    : _locationCtrl.text,
                 minPay: _parseNum(_minPayCtrl.text),
                 maxPay: _parseNum(_maxPayCtrl.text),
                 startDate: _startDate,
@@ -89,10 +119,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                     ),
                   );
                 }
-                final scored = jobs
-                    .map((j) => MapEntry(j, _matchScore(j)))
-                    .toList()
-                  ..sort((a, b) => b.value.compareTo(a.value));
+                final scored =
+                    jobs.map((j) => MapEntry(j, _matchScore(j))).toList()
+                      ..sort((a, b) => b.value.compareTo(a.value));
                 return ListView.builder(
                   itemCount: scored.length,
                   itemBuilder: (context, index) {
@@ -121,56 +150,60 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _buildFilters() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         children: [
+          // Location and Pay filters
           Row(
             children: [
               Expanded(
-                child: TextField(
+                flex: 2,
+                child: _buildFilterField(
                   controller: _locationCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Location',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => setState(() {}),
+                  hint: 'Location',
+                  icon: Icons.location_on_outlined,
                 ),
               ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 120,
-                child: TextField(
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildFilterField(
                   controller: _minPayCtrl,
+                  hint: 'Min Pay',
+                  icon: Icons.payments_outlined,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Min Pay',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => setState(() {}),
                 ),
               ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 120,
-                child: TextField(
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildFilterField(
                   controller: _maxPayCtrl,
+                  hint: 'Max Pay',
+                  icon: Icons.payments_outlined,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Max Pay',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
+          // Date filters
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () async {
+                child: _buildDateButton(
+                  label: _startDate == null
+                      ? 'Start Date'
+                      : _formatFilterDate(_startDate!),
+                  onTap: () async {
                     final d = await showDatePicker(
                       context: context,
                       initialDate: _startDate ?? DateTime.now(),
@@ -181,17 +214,15 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                       _startDate = d;
                     });
                   },
-                  child: Text(
-                    _startDate == null
-                        ? 'Start Date'
-                        : _startDate!.toLocal().toIso8601String().split('T').first,
-                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () async {
+                child: _buildDateButton(
+                  label: _endDate == null
+                      ? 'End Date'
+                      : _formatFilterDate(_endDate!),
+                  onTap: () async {
                     final d = await showDatePicker(
                       context: context,
                       initialDate: _endDate ?? DateTime.now(),
@@ -202,13 +233,23 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                       _endDate = d;
                     });
                   },
-                  child: Text(
-                    _endDate == null
-                        ? 'End Date'
-                        : _endDate!.toLocal().toIso8601String().split('T').first,
-                  ),
                 ),
               ),
+              if (_startDate != null || _endDate != null) ...[
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _startDate = null;
+                      _endDate = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -216,90 +257,273 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
+  Widget _buildFilterField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+          prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade600),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 14,
+          ),
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
+
+  Widget _buildDateButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final isSelected = !label.contains('Date');
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 18,
+              color: isSelected
+                  ? const Color(0xFF1565C0)
+                  : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isSelected
+                    ? const Color(0xFF1565C0)
+                    : Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatFilterDate(DateTime d) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]}';
+  }
+
   Widget _jobTile(Job job, bool recommended) {
-    return Card(
+    final distance = _calculateJobDistance(job);
+
+    // Format date range
+    String formatDate(DateTime d) {
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${d.day} ${months[d.month - 1]} ${d.year}';
+    }
+
+    final dateRange =
+        '${formatDate(job.startDate)} - ${formatDate(job.endDate)}';
+
+    // Format time range
+    String? timeRange;
+    if (job.startTime != null && job.endTime != null) {
+      timeRange = '${job.startTime} - ${job.endTime}';
+    }
+
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header: Title and Recommended badge
             Row(
               children: [
                 Expanded(
                   child: Text(
                     job.title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F1E3C),
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F4F7),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    job.status.toUpperCase(),
-                    style: const TextStyle(color: Color(0xFF616161), fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FutureBuilder<double>(
-                  future: _service.getEmployerAverageRating(job.employerId),
-                  builder: (context, snapshot) {
-                    final avg = snapshot.data ?? 0;
-                    return Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 16),
-                        Text(avg.toStringAsFixed(1), style: const TextStyle(fontSize: 12)),
-                      ],
-                    );
-                  },
                 ),
                 if (recommended)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2F1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
                       'Recommended',
-                      style: TextStyle(color: Color(0xFF00796B), fontSize: 12),
+                      style: TextStyle(
+                        color: Color(0xFF2E7D32),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(job.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.place, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(job.location),
-                const SizedBox(width: 12),
-                // Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
-                // const SizedBox(width: 4),
-                Text('RM ${job.pay}'),
-              ],
+            const SizedBox(height: 16),
+
+            // Info rows
+            _buildInfoRow(
+              Icons.location_on_outlined,
+              job.location,
+              const Color(0xFF5C6BC0),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+            _buildInfoRow(
+              Icons.calendar_today_outlined,
+              dateRange,
+              const Color(0xFF26A69A),
+            ),
+            if (timeRange != null) ...[
+              const SizedBox(height: 10),
+              _buildInfoRow(
+                Icons.access_time_outlined,
+                timeRange,
+                const Color(0xFFFF7043),
+              ),
+            ],
+            const SizedBox(height: 16),
+
+            // Salary and Distance row
             Row(
               children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: job.skillsRequired
-                        .map((s) => Chip(label: Text(s), visualDensity: VisualDensity.compact))
-                        .toList(),
+                // Salary chip
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3E5F5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.payments_outlined,
+                        size: 16,
+                        color: Color(0xFF7B1FA2),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'RM ${job.pay}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF7B1FA2),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 10),
+
+                // Distance chip
+                if (distance != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getDistanceColor(distance),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.near_me_outlined,
+                          size: 16,
+                          color: _getDistanceTextColor(distance),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          LocationService.formatDistance(distance),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _getDistanceTextColor(distance),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+
+            // Action buttons
             Row(
               children: [
                 Expanded(
@@ -307,68 +531,62 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                     onPressed: job.status != 'open'
                         ? null
                         : () async {
-                      if (FirebaseAuth.instance.currentUser == null) {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AuthAccountPage(selectedIndex: 0)),
-                        );
-                        if (FirebaseAuth.instance.currentUser == null) return;
-                      }
-                      final result = await _service.applyToJob(job);
-                      if (!mounted) return;
-                      if (result == 'applied') {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Applied')),
-                        );
-                      } else if (result == 'reapplied') {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Re-applied')),
-                        );
-                      } else {
-                        await showDialog(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Already Applied'),
-                            content: const Text('You have already applied to this job. Check My Jobs for status.'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                    },
-                    child: Text(job.status != 'open' ? 'Unavailable' : 'Apply'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: job.status != 'open'
-                        ? null
-                        : () async {
-                      if (FirebaseAuth.instance.currentUser == null) {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AuthAccountPage(selectedIndex: 0)),
-                        );
-                        if (FirebaseAuth.instance.currentUser == null) return;
-                      }
-                      final chatId = await _service.createOrOpenChat(
-                        employerId: job.employerId,
-                        jobId: job.id,
-                      );
-                      if (!mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MessagePage(chatId: chatId),
-                        ),
-                      );
-                    },
-                    child: const Text('Chat'),
+                            if (FirebaseAuth.instance.currentUser == null) {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const AuthAccountPage(selectedIndex: 0),
+                                ),
+                              );
+                              if (FirebaseAuth.instance.currentUser == null) {
+                                return;
+                              }
+                            }
+                            final result = await _service.applyToJob(job);
+                            if (!mounted) return;
+                            if (result == 'applied') {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Applied')),
+                              );
+                            } else if (result == 'reapplied') {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Re-applied')),
+                              );
+                            } else {
+                              await showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Already Applied'),
+                                  content: const Text(
+                                    'You have already applied to this job. Check My Jobs for status.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F1E3C),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      job.status != 'open' ? 'Unavailable' : 'Apply Now',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -377,6 +595,60 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
         ),
       ),
     );
+  }
+
+  /// Helper widget to build info rows with icon and text
+  Widget _buildInfoRow(IconData icon, String text, Color iconColor) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF424242),
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Get background color for distance badge based on distance
+  Color _getDistanceColor(double distanceKm) {
+    if (distanceKm <= 5) {
+      return Colors.green.shade50;
+    } else if (distanceKm <= 15) {
+      return Colors.blue.shade50;
+    } else if (distanceKm <= 30) {
+      return Colors.orange.shade50;
+    } else {
+      return Colors.grey.shade100;
+    }
+  }
+
+  /// Get text color for distance badge based on distance
+  Color _getDistanceTextColor(double distanceKm) {
+    if (distanceKm <= 5) {
+      return Colors.green.shade700;
+    } else if (distanceKm <= 15) {
+      return Colors.blue.shade700;
+    } else if (distanceKm <= 30) {
+      return Colors.orange.shade700;
+    } else {
+      return Colors.grey.shade700;
+    }
   }
 
   void _navigateToPage(int index) {
@@ -399,17 +671,38 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   double _matchScore(Job job) {
     double score = 0;
     if (_userSkills.isNotEmpty && job.skillsRequired.isNotEmpty) {
-      final overlap = job.skillsRequired.where((s) => _userSkills.contains(s)).length;
+      final overlap = job.skillsRequired
+          .where((s) => _userSkills.contains(s))
+          .length;
       score += overlap / job.skillsRequired.length;
     }
-    if (_userLocation.isNotEmpty && job.location.isNotEmpty) {
-      if (_userLocation.toLowerCase().trim() == job.location.toLowerCase().trim()) {
+
+    // Location matching - use distance if geo data available
+    final distance = _calculateJobDistance(job);
+    if (distance != null) {
+      // Closer jobs get higher scores
+      // Within 5km: +0.4, 5-15km: +0.3, 15-30km: +0.2, 30-50km: +0.1
+      if (distance <= 5) {
+        score += 0.4;
+      } else if (distance <= 15) {
+        score += 0.3;
+      } else if (distance <= 30) {
+        score += 0.2;
+      } else if (distance <= 50) {
+        score += 0.1;
+      }
+    } else if (_userLocation.isNotEmpty && job.location.isNotEmpty) {
+      // Fallback to text matching if no geo data
+      if (_userLocation.toLowerCase().trim() ==
+          job.location.toLowerCase().trim()) {
         score += 0.3;
       }
     }
+
     if (_startDate != null && _endDate != null) {
       final overlaps =
-          !(job.endDate.isBefore(_startDate!) || job.startDate.isAfter(_endDate!));
+          !(job.endDate.isBefore(_startDate!) ||
+              job.startDate.isAfter(_endDate!));
       if (overlaps) score += 0.2;
     }
     if (score > 1) score = 1;
