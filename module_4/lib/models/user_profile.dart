@@ -11,6 +11,8 @@ class UserProfile {
   final GeoLocation? geoLocation; // Coordinates for distance calculation
   final List<String> skills;
   final UserRole role;
+  final String bankAccountNumber; // For student payment transfers
+  final String bankName; // Bank name for payment transfers
 
   UserProfile({
     required this.id,
@@ -22,6 +24,8 @@ class UserProfile {
     this.geoLocation,
     required this.skills,
     required this.role,
+    this.bankAccountNumber = '',
+    this.bankName = '',
   });
 
   factory UserProfile.fromMap(String id, Map<String, dynamic> data) {
@@ -51,6 +55,8 @@ class UserProfile {
         (data['skills'] ?? []).map((e) => e.toString()),
       ),
       role: parseUserRole(data['role']?.toString()),
+      bankAccountNumber: data['bankAccountNumber']?.toString() ?? '',
+      bankName: data['bankName']?.toString() ?? '',
     );
   }
 
@@ -64,6 +70,8 @@ class UserProfile {
       if (geoLocation != null) 'geoLocation': geoLocation!.toMap(),
       'skills': skills,
       'role': userRoleToString(role),
+      'bankAccountNumber': bankAccountNumber,
+      'bankName': bankName,
     };
   }
 
@@ -78,6 +86,8 @@ class UserProfile {
     GeoLocation? geoLocation,
     List<String>? skills,
     UserRole? role,
+    String? bankAccountNumber,
+    String? bankName,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -89,6 +99,8 @@ class UserProfile {
       geoLocation: geoLocation ?? this.geoLocation,
       skills: skills ?? this.skills,
       role: role ?? this.role,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankName: bankName ?? this.bankName,
     );
   }
 }

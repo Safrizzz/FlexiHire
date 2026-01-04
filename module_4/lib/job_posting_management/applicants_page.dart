@@ -57,38 +57,60 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: FutureBuilder(
-                  future: _service.getUserProfile(application.applicantId),
+                  future: Future.wait([
+                    _service.getUserProfile(application.applicantId),
+                    _service.getEmployeeAverageRating(application.applicantId),
+                  ]),
                   builder: (context, snap) {
-                    final profile = snap.data;
+                    final profile = snap.data?[0] as dynamic;
+                    final rating = snap.data?[1] as double? ?? 0.0;
                     final title = profile?.displayName ?? application.applicantId;
                     final subtitle = profile?.email ?? '';
+                    final status = application.status;
+                    
+                    Color statusColor = Colors.grey;
+                    if (status == 'accepted') statusColor = Colors.green;
+                    if (status == 'rejected') statusColor = Colors.red;
+                    
                     return ListTile(
                       title: Text(title),
-                      subtitle: Text(subtitle),
+                      subtitle: Row(
+                        children: [
+                          Expanded(child: Text(subtitle)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: statusColor),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor),
+                            ),
+                          ),
+                        ],
+                      ),
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => ApplicantDetailPage(applicantId: application.applicantId)),
+                          MaterialPageRoute(
+                            builder: (_) => ApplicantDetailPage(
+                              applicantId: application.applicantId,
+                              applicationId: application.id,
+                              currentStatus: application.status,
+                            ),
+                          ),
                         );
                       },
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          Icon(Icons.star, color: Colors.amber, size: 18),
+                          const SizedBox(width: 4),
                           Text(
-                            application.status.toUpperCase(),
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                            onPressed: () => _service.updateApplicationStatus(application.id, 'accepted'),
-                            child: const Text('Accept', style: TextStyle(color: Colors.white)),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: () => _service.updateApplicationStatus(application.id, 'rejected'),
-                            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),

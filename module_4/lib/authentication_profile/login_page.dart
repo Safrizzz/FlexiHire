@@ -36,13 +36,16 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacementNamed(context, '/profile');
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.message;
       });
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 

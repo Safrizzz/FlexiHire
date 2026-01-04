@@ -2,13 +2,45 @@ import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 
-class ApplicantDetailPage extends StatelessWidget {
+class ApplicantDetailPage extends StatefulWidget {
   final String applicantId;
-  const ApplicantDetailPage({super.key, required this.applicantId});
+  final String applicationId;
+  final String currentStatus;
+  
+  const ApplicantDetailPage({
+    super.key,
+    required this.applicantId,
+    required this.applicationId,
+    required this.currentStatus,
+  });
+
+  @override
+  State<ApplicantDetailPage> createState() => _ApplicantDetailPageState();
+}
+
+class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
+  final FirestoreService _service = FirestoreService();
+  late String _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = widget.currentStatus;
+  }
+
+  Future<void> _updateStatus(String newStatus) async {
+    await _service.updateApplicationStatus(widget.applicationId, newStatus);
+    if (!mounted) return;
+    setState(() {
+      _status = newStatus;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Applicant ${newStatus == 'accepted' ? 'accepted' : 'rejected'}')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final service = FirestoreService();
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F1E3C),
@@ -23,7 +55,7 @@ class ApplicantDetailPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               FutureBuilder<UserProfile?>(
-                future: service.getUserProfile(applicantId),
+                future: _service.getUserProfile(widget.applicantId),
                 builder: (context, snap) {
                   final p = snap.data;
                   if (snap.connectionState == ConnectionState.waiting) {
@@ -83,7 +115,7 @@ class ApplicantDetailPage extends StatelessWidget {
               const Text('Recent Ratings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               FutureBuilder<double>(
-                future: service.getEmployeeAverageRating(applicantId),
+                future: _service.getEmployeeAverageRating(widget.applicantId),
                 builder: (context, avgSnap) {
                   final avg = avgSnap.data ?? 0;
                   return Row(
@@ -97,7 +129,7 @@ class ApplicantDetailPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               StreamBuilder<List<Map<String, dynamic>>>(
-                stream: service.streamEmployeeRatings(applicantId),
+                stream: _service.streamEmployeeRatings(widget.applicantId),
                 builder: (context, ratingsSnap) {
                   final ratings = ratingsSnap.data ?? [];
                   final displayed = ratings.take(5).toList();
@@ -116,6 +148,69 @@ class ApplicantDetailPage extends StatelessWidget {
                     }).toList(),
                   );
                 },
+              ),
+              const SizedBox(height: 24),
+              // Current Status
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: _status == 'accepted'
+                      ? Colors.green.shade50
+                      : _status == 'rejected'
+                          ? Colors.red.shade50
+                          : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _status == 'accepted'
+                        ? Colors.green
+                        : _status == 'rejected'
+                            ? Colors.red
+                            : Colors.grey,
+                  ),
+                ),
+                child: Text(
+                  'Status: ${_status.toUpperCase()}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _status == 'accepted'
+                        ? Colors.green.shade700
+                        : _status == 'rejected'
+                            ? Colors.red.shade700
+                            : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Accept/Reject Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: _status == 'accepted' ? null : () => _updateStatus('accepted'),
+                      child: const Text('Accept', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: _status == 'rejected' ? null : () => _updateStatus('rejected'),
+                      child: const Text('Reject', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

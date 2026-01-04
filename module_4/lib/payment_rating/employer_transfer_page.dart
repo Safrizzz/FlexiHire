@@ -292,6 +292,8 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                           setState(() {
                             _employeeNameController.text = profile.displayName;
                             _employeeIDController.text = profile.id;
+                            _employeeAccountController.text = profile.bankAccountNumber;
+                            _employeeBankController.text = profile.bankName;
                           });
                         }
                         messenger.showSnackBar(
@@ -333,25 +335,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                     const SizedBox(height: 16),
 
                     // ========================================================
-                    // FIELD 2 - Employee Email
-                    // ========================================================
-                    _buildLabel('Employee Name'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _employeeNameController,
-                      decoration: _buildInputDecoration(hintText: 'Enter employee full name'),
-                      style: _inputTextStyle,
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Please enter employee name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ========================================================
-                    // FIELD 3 - Employee ID
+                    // FIELD 2 - Employee ID
                     // ========================================================
                     _buildLabel('Employee ID (uid)'),
                     const SizedBox(height: 8),

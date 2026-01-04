@@ -16,6 +16,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _skillsCtrl = TextEditingController();
+  final _bankAccountCtrl = TextEditingController();
+  final _bankNameCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _service = FirestoreService();
   UserRole _role = UserRole.student;
@@ -43,6 +45,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _locationAddress = p?.location ?? '';
     _geoLocation = p?.geoLocation;
     _skillsCtrl.text = (p?.skills ?? []).join(', ');
+    _bankAccountCtrl.text = p?.bankAccountNumber ?? '';
+    _bankNameCtrl.text = p?.bankName ?? '';
     _role = p?.role ?? UserRole.student;
     setState(() => _loading = false);
   }
@@ -65,6 +69,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           .where((e) => e.isNotEmpty)
           .toList(),
       role: _role,
+      bankAccountNumber: _bankAccountCtrl.text.trim(),
+      bankName: _bankNameCtrl.text.trim(),
     );
     await _service.updateUserProfile(profile);
     if (!mounted) return;
@@ -79,6 +85,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _skillsCtrl.dispose();
+    _bankAccountCtrl.dispose();
+    _bankNameCtrl.dispose();
     super.dispose();
   }
 
@@ -215,14 +223,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ],
                       const SizedBox(height: 12),
 
-                      TextFormField(
-                        controller: _skillsCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Skills (comma-separated)',
-                          border: OutlineInputBorder(),
+                      // Skills field - only for students
+                      if (_role == UserRole.student) ...[
+                        TextFormField(
+                          controller: _skillsCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Skills (comma-separated)',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 12),
+                        // Bank Account Number
+                        TextFormField(
+                          controller: _bankAccountCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Bank Account Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 12),
+                        // Bank Name
+                        TextFormField(
+                          controller: _bankNameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Bank Name',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       SizedBox(
                         width: double.infinity,
                         height: 48,
