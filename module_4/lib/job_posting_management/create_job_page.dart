@@ -4,6 +4,7 @@ import 'job_model.dart';
 import 'micro_shift.dart';
 import '../services/location_service.dart';
 import '../components/location_picker.dart';
+import '../components/micro_shift_calendar.dart';
 
 class CreateJobPage extends StatefulWidget {
   final Job? existingJob;
@@ -26,8 +27,8 @@ class _CreateJobPageState extends State<CreateJobPage> {
   String _locationAddress = '';
   GeoLocation? _geoLocation;
 
-  final List<MicroShift> _microShifts = [];
-  DateTime? _selectedDate;
+  // Micro-shift calendar selection
+  Set<DateTime> _selectedDates = {};
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
 
@@ -45,7 +46,21 @@ class _CreateJobPageState extends State<CreateJobPage> {
       _geoLocation = job.geoLocation;
       _payRateController.text = job.payRate.toString();
       _descriptionController.text = job.description;
-      _microShifts.addAll(job.microShifts);
+
+      // Load existing micro-shifts into calendar selection
+      if (job.microShifts.isNotEmpty) {
+        _selectedDates = job.microShifts.map((s) => s.date).toSet();
+        // Get the time from first shift (all shifts have same time)
+        final firstShift = job.microShifts.first;
+        _startTime = TimeOfDay(
+          hour: firstShift.start.hour,
+          minute: firstShift.start.minute,
+        );
+        _endTime = TimeOfDay(
+          hour: firstShift.end.hour,
+          minute: firstShift.end.minute,
+        );
+      }
     }
   }
 
@@ -58,131 +73,73 @@ class _CreateJobPageState extends State<CreateJobPage> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
-    );
-
-    if (picked != null) setState(() => _selectedDate = picked);
-  }
-
-  String _fmtDate(DateTime d) {
-    final dd = d.day.toString().padLeft(2, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    return '$dd/$mm/${d.year}';
-  }
-
-  Future<void> _pickStartTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _startTime ?? const TimeOfDay(hour: 9, minute: 0),
-    );
-    if (picked != null) setState(() => _startTime = picked);
-  }
-
-  Future<void> _pickEndTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _endTime ?? const TimeOfDay(hour: 13, minute: 0),
-    );
-    if (picked != null) setState(() => _endTime = picked);
-  }
-
-  String _fmt(TimeOfDay t) {
-    final h = t.hour.toString().padLeft(2, '0');
-    final m = t.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
   bool _isValidRange(TimeOfDay start, TimeOfDay end) {
     final s = start.hour * 60 + start.minute;
     final e = end.hour * 60 + end.minute;
     return e > s;
   }
 
-  void _addMicroShift() {
-    if (_selectedDate == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a date.')));
-      return;
+  List<MicroShift> _buildMicroShifts() {
+    if (_selectedDates.isEmpty || _startTime == null || _endTime == null) {
+      return [];
     }
 
-    if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select start and end time.')),
+    return _selectedDates.map((date) {
+      final start = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        _startTime!.hour,
+        _startTime!.minute,
       );
-      return;
-    }
-
-    if (!_isValidRange(_startTime!, _endTime!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('End time must be after start time.')),
+      final end = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        _endTime!.hour,
+        _endTime!.minute,
       );
-      return;
-    }
-
-    final d = _selectedDate!;
-    final start = DateTime(
-      d.year,
-      d.month,
-      d.day,
-      _startTime!.hour,
-      _startTime!.minute,
-    );
-    final end = DateTime(
-      d.year,
-      d.month,
-      d.day,
-      _endTime!.hour,
-      _endTime!.minute,
-    );
-
-    final shift = MicroShift(start: start, end: end);
-
-    setState(() {
-      // prevent exact duplicates
-      final exists = _microShifts.any(
-        (s) => s.start == shift.start && s.end == shift.end,
-      );
-      if (!exists) _microShifts.add(shift);
-      _selectedDate = null;
-      _startTime = null;
-      _endTime = null;
-    });
-  }
-
-  void _removeMicroShift(MicroShift shift) {
-    setState(() => _microShifts.remove(shift));
+      return MicroShift(start: start, end: end);
+    }).toList()..sort((a, b) => a.start.compareTo(b.start));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFB),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Text(
           isEdit ? 'Edit Job' : 'Create Job',
-          style: const TextStyle(color: Color.fromARGB(255, 21, 36, 69)),
+          style: const TextStyle(
+            color: Color(0xFF0F1E3C),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Color.fromARGB(255, 21, 36, 69)),
+        iconTheme: const IconThemeData(color: Color(0xFF0F1E3C)),
+        shadowColor: Colors.black.withOpacity(0.1),
+        surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTextField(_titleController, 'Job Title'),
-              const SizedBox(height: 16),
-              _buildTextField(_companyController, 'Company'),
-              const SizedBox(height: 16),
+              // Job Details Section
+              _buildSectionHeader('Job Details', Icons.work_outline),
+              const SizedBox(height: 12),
+              _buildModernTextField(_titleController, 'Job Title', Icons.title),
+              const SizedBox(height: 12),
+              _buildModernTextField(
+                _companyController,
+                'Company',
+                Icons.business,
+              ),
+              const SizedBox(height: 12),
 
               // Location picker with geo-coding
               LocationPickerField(
@@ -199,92 +156,75 @@ class _CreateJobPageState extends State<CreateJobPage> {
               ),
               if (_geoLocation != null && _geoLocation!.isValid) ...[
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.green.shade700,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Location verified: ${_geoLocation!.latitude.toStringAsFixed(4)}, ${_geoLocation!.longitude.toStringAsFixed(4)}',
-                          style: TextStyle(
-                            color: Colors.green.shade700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                _buildLocationVerifiedBadge(),
+              ],
+              const SizedBox(height: 12),
+
+              _buildModernPayRateField(),
+
+              const SizedBox(height: 24),
+
+              // Micro-Shift Section - THE STAR FEATURE
+              _buildSectionHeader('Micro-Shift Schedule', Icons.calendar_month),
+              const SizedBox(height: 8),
+              Text(
+                'Select the dates you need workers and set the working hours',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+
+              // Beautiful Calendar
+              MicroShiftCalendar(
+                selectedDates: _selectedDates,
+                onSelectionChanged: (dates) {
+                  setState(() => _selectedDates = dates);
+                },
+                multiSelect: true,
+                selectedColor: const Color(0xFF0F1E3C),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Time Selection
+              MicroShiftTimeSelector(
+                startTime: _startTime,
+                endTime: _endTime,
+                onStartTimeChanged: (time) => setState(() => _startTime = time),
+                onEndTimeChanged: (time) => setState(() => _endTime = time),
+              ),
+
+              // Validation message
+              if (_selectedDates.isNotEmpty &&
+                  (_startTime == null || _endTime == null)) ...[
+                const SizedBox(height: 12),
+                _buildWarningMessage(
+                  'Please set working hours for the selected dates',
                 ),
               ],
-              const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _payRateController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Pay Rate (RM/hr)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter pay rate';
-                  }
-                  if (double.tryParse(value) == null) return 'Invalid number';
-                  return null;
-                },
+              if (_startTime != null &&
+                  _endTime != null &&
+                  !_isValidRange(_startTime!, _endTime!)) ...[
+                const SizedBox(height: 12),
+                _buildWarningMessage('End time must be after start time'),
+              ],
+
+              const SizedBox(height: 24),
+
+              // Description Section
+              _buildSectionHeader(
+                'Job Description',
+                Icons.description_outlined,
               ),
+              const SizedBox(height: 12),
+              _buildModernDescriptionField(),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
 
-              // ✅ Micro-shift selection UI
-              _microShiftSection(),
+              // Save Button
+              _buildSaveButton(),
 
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Job Description',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F1E3C),
-                  ),
-                  onPressed: _saveJob,
-                  child: Text(
-                    isEdit ? 'Save Changes' : 'Create Job',
-                    style: const TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -292,91 +232,286 @@ class _CreateJobPageState extends State<CreateJobPage> {
     );
   }
 
-  Widget _microShiftSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Micro-Shift Selection',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _pickDate,
-                  child: Text(
-                    _selectedDate == null
-                        ? 'Pick date'
-                        : _fmtDate(_selectedDate!),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _pickStartTime,
-                  child: Text(
-                    _startTime == null ? 'Start time' : _fmt(_startTime!),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _pickEndTime,
-                  child: Text(_endTime == null ? 'End time' : _fmt(_endTime!)),
-                ),
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0F1E3C), Color(0xFF1A3A6E)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F1E3C).withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F1E3C),
+          ),
+        ),
+      ],
+    );
+  }
 
-          const SizedBox(height: 10),
+  Widget _buildModernTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF6366F1)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) return 'Please enter $label';
+          return null;
+        },
+      ),
+    );
+  }
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F1E3C),
-              ),
-              onPressed: _addMicroShift,
-              child: const Text(
-                'Add Micro-Shift',
-                style: TextStyle(color: Colors.white),
+  Widget _buildModernPayRateField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: _payRateController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+        ],
+        decoration: InputDecoration(
+          labelText: 'Pay Rate (RM/hr)',
+          prefixIcon: const Icon(
+            Icons.payments_outlined,
+            color: Color(0xFF10B981),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) return 'Please enter pay rate';
+          if (double.tryParse(value) == null) return 'Invalid number';
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _buildModernDescriptionField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: _descriptionController,
+        maxLines: 5,
+        decoration: InputDecoration(
+          labelText: 'Description',
+          alignLabelWithHint: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.all(20),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationVerifiedBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade50, Colors.green.shade100],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.green.shade600,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check, color: Colors.white, size: 14),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Location verified • ${_geoLocation!.latitude.toStringAsFixed(4)}, ${_geoLocation!.longitude.toStringAsFixed(4)}',
+              style: TextStyle(
+                color: Colors.green.shade700,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          if (_microShifts.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _microShifts.map((shift) {
-                return Chip(
-                  label: Text(shift.toDisplay()),
-                  onDeleted: () => _removeMicroShift(shift),
-                );
-              }).toList(),
+  Widget _buildWarningMessage(String message) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange.shade700,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.orange.shade700,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    final bool canSave =
+        _selectedDates.isNotEmpty &&
+        _startTime != null &&
+        _endTime != null &&
+        _isValidRange(_startTime!, _endTime!);
+
+    return Container(
+      width: double.infinity,
+      height: 60,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: canSave
+            ? const LinearGradient(
+                colors: [Color(0xFF0F1E3C), Color(0xFF1A3A6E)],
+              )
+            : null,
+        color: canSave ? null : Colors.grey.shade300,
+        boxShadow: canSave
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF0F1E3C).withOpacity(0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
+      ),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        onPressed: canSave ? _saveJob : null,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isEdit ? Icons.save : Icons.rocket_launch,
+              color: Colors.white,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              isEdit ? 'Save Changes' : 'Create Job',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -392,8 +527,31 @@ class _CreateJobPageState extends State<CreateJobPage> {
       return;
     }
 
+    // Validate micro-shifts
+    if (_selectedDates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one work date.')),
+      );
+      return;
+    }
+
+    if (_startTime == null || _endTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please set working hours.')),
+      );
+      return;
+    }
+
+    if (!_isValidRange(_startTime!, _endTime!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('End time must be after start time.')),
+      );
+      return;
+    }
+
     final double parsedPayRate =
         double.tryParse(_payRateController.text) ?? 0.0;
+    final microShifts = _buildMicroShifts();
 
     final Job jobToReturn = Job(
       id:
@@ -405,25 +563,11 @@ class _CreateJobPageState extends State<CreateJobPage> {
       geoLocation: _geoLocation,
       payRate: parsedPayRate,
       description: _descriptionController.text,
-      microShifts: List<MicroShift>.from(_microShifts),
+      microShifts: microShifts,
       applicants: widget.existingJob?.applicants ?? [],
       hires: widget.existingJob?.hires ?? [],
     );
 
     Navigator.pop(context, jobToReturn);
-  }
-
-  Widget _buildTextField(TextEditingController controller, String label) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) return 'Please enter $label';
-        return null;
-      },
-    );
   }
 }

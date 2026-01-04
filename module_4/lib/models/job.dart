@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/location_service.dart';
+import '../job_posting_management/micro_shift.dart';
 
 class Job {
   final String id;
@@ -16,6 +17,7 @@ class Job {
   final String employerId;
   final DateTime createdAt;
   final String status;
+  final List<MicroShift> microShifts; // Added micro-shifts
 
   Job({
     required this.id,
@@ -32,6 +34,7 @@ class Job {
     required this.employerId,
     required this.createdAt,
     this.status = 'open',
+    this.microShifts = const [],
   });
 
   factory Job.fromMap(String id, Map<String, dynamic> data) {
@@ -64,6 +67,14 @@ class Job {
       );
     }
 
+    // Parse micro-shifts if available
+    List<MicroShift> shifts = [];
+    if (data['microShifts'] != null && data['microShifts'] is List) {
+      shifts = (data['microShifts'] as List)
+          .map((s) => MicroShift.fromMap(Map<String, dynamic>.from(s)))
+          .toList();
+    }
+
     return Job(
       id: id,
       title: data['title'] ?? '',
@@ -81,6 +92,7 @@ class Job {
       employerId: data['employerId'] ?? '',
       createdAt: toDate(data['createdAt']),
       status: data['status']?.toString() ?? 'open',
+      microShifts: shifts,
     );
   }
 
@@ -99,6 +111,7 @@ class Job {
       'employerId': employerId,
       'createdAt': createdAt.toIso8601String(),
       'status': status,
+      'microShifts': microShifts.map((s) => s.toMap()).toList(),
     };
   }
 
@@ -118,6 +131,7 @@ class Job {
     String? employerId,
     DateTime? createdAt,
     String? status,
+    List<MicroShift>? microShifts,
   }) {
     return Job(
       id: id ?? this.id,
@@ -134,6 +148,7 @@ class Job {
       employerId: employerId ?? this.employerId,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
+      microShifts: microShifts ?? this.microShifts,
     );
   }
 }

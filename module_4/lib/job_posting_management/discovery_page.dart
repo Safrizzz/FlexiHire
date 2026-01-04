@@ -1,38 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../components/bottom_nav_bar.dart';
+import '../components/main_shell.dart';
 import '../models/job.dart';
 import '../services/firestore_service.dart';
 import '../services/location_service.dart';
-import '../matching_chatting/message_page.dart';
-import '../authentication_profile/auth_account_page.dart';
 import 'student_job_details_page.dart';
 
 class DiscoveryPage extends StatefulWidget {
-  const DiscoveryPage({super.key});
+  final bool showBottomNav;
+  
+  const DiscoveryPage({super.key, this.showBottomNav = true});
 
   @override
   State<DiscoveryPage> createState() => _DiscoveryPageState();
 }
 
-class _DiscoveryPageState extends State<DiscoveryPage> {
-  int _selectedNavIndex = 0; // Discovery tab
+class _DiscoveryPageState extends State<DiscoveryPage>
+    with TickerProviderStateMixin {
+  int _selectedNavIndex = 0;
   final FirestoreService _service = FirestoreService();
-  final TextEditingController _locationCtrl = TextEditingController();
-  final TextEditingController _minPayCtrl = TextEditingController();
-  final TextEditingController _maxPayCtrl = TextEditingController();
+
+  // Filter values
+  double _distanceRange = 50.0; // km
+  double _minPay = 0;
+  double _maxPay = 100;
   DateTime? _startDate;
   DateTime? _endDate;
+
+  // User data
   List<String> _userSkills = [];
   String _userLocation = '';
-  GeoLocation?
-  _userGeoLocation; // User's geo coordinates for distance calculation
+  GeoLocation? _userGeoLocation;
+
+  // Animation controllers
+  late AnimationController _headerAnimController;
+  late Animation<double> _headerFadeAnimation;
+
+  // Active filters count
+  int get _activeFiltersCount {
+    int count = 0;
+    if (_distanceRange < 50) count++;
+    if (_minPay > 0 || _maxPay < 100) count++;
+    if (_startDate != null || _endDate != null) count++;
+    return count;
+  }
 
   @override
   void initState() {
     super.initState();
+    _headerAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _headerFadeAnimation = CurvedAnimation(
+      parent: _headerAnimController,
+      curve: Curves.easeOut,
+    );
+    _headerAnimController.forward();
     _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _headerAnimController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserProfile() async {
@@ -45,7 +79,6 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             .get();
         final data = doc.data() ?? {};
 
-        // Parse geo location
         GeoLocation? geoLoc;
         if (data['geoLocation'] != null && data['geoLocation'] is Map) {
           geoLoc = GeoLocation.fromMap(
@@ -61,266 +94,355 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           _userGeoLocation = geoLoc;
         });
       }
-    } catch (_) {
-      // Handle error silently
-    }
+    } catch (_) {}
   }
 
-  /// Calculate distance between user and job location
   double? _calculateJobDistance(Job job) {
     if (_userGeoLocation == null || !_userGeoLocation!.isValid) return null;
     if (job.geoLocation == null || !job.geoLocation!.isValid) return null;
-
     return LocationService.calculateDistance(
       _userGeoLocation!,
       job.geoLocation!,
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 250, 250, 251),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1E3C),
-        elevation: 0,
-        title: const Text(
-          'Discovery',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          _buildFilters(),
-          Expanded(
-            child: StreamBuilder<List<Job>>(
-              stream: _service.streamJobs(
-                location: _locationCtrl.text.isEmpty
-                    ? null
-                    : _locationCtrl.text,
-                minPay: _parseNum(_minPayCtrl.text),
-                maxPay: _parseNum(_maxPayCtrl.text),
-                startDate: _startDate,
-                endDate: _endDate,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final jobs = snapshot.data ?? [];
-                if (jobs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No jobs found',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  );
-                }
-                final scored =
-                    jobs.map((j) => MapEntry(j, _matchScore(j))).toList()
-                      ..sort((a, b) => b.value.compareTo(a.value));
-                return ListView.builder(
-                  itemCount: scored.length,
-                  itemBuilder: (context, index) {
-                    final job = scored[index].key;
-                    final score = scored[index].value;
-                    final recommended = score >= 0.6;
-                    return _jobTile(job, recommended);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: CustomBottomNavBar(
-        selectedIndex: _selectedNavIndex,
-        onTap: (index) {
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _FilterBottomSheet(
+        distanceRange: _distanceRange,
+        minPay: _minPay,
+        maxPay: _maxPay,
+        startDate: _startDate,
+        endDate: _endDate,
+        onApply: (distance, minPay, maxPay, start, end) {
           setState(() {
-            _selectedNavIndex = index;
+            _distanceRange = distance;
+            _minPay = minPay;
+            _maxPay = maxPay;
+            _startDate = start;
+            _endDate = end;
           });
-          _navigateToPage(index);
+          Navigator.pop(ctx);
+        },
+        onReset: () {
+          setState(() {
+            _distanceRange = 50.0;
+            _minPay = 0;
+            _maxPay = 100;
+            _startDate = null;
+            _endDate = null;
+          });
+          Navigator.pop(ctx);
         },
       ),
     );
   }
 
-  Widget _buildFilters() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F4F8),
+      body: CustomScrollView(
+        slivers: [
+          _buildSliverAppBar(),
+          SliverToBoxAdapter(child: _buildQuickFilters()),
+          _buildJobsList(),
         ],
       ),
-      child: Column(
-        children: [
-          // Location and Pay filters
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: _buildFilterField(
-                  controller: _locationCtrl,
-                  hint: 'Location',
-                  icon: Icons.location_on_outlined,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildFilterField(
-                  controller: _minPayCtrl,
-                  hint: 'Min Pay',
-                  icon: Icons.payments_outlined,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildFilterField(
-                  controller: _maxPayCtrl,
-                  hint: 'Max Pay',
-                  icon: Icons.payments_outlined,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-            ],
+      bottomNavigationBar: widget.showBottomNav
+          ? CustomBottomNavBar(
+              selectedIndex: _selectedNavIndex,
+              onTap: (index) {
+                setState(() => _selectedNavIndex = index);
+                _navigateToPage(index);
+              },
+            )
+          : null,
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 180,
+      floating: false,
+      pinned: true,
+      backgroundColor: const Color(0xFF0A1628),
+      automaticallyImplyLeading: false,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0F2847)],
+            ),
           ),
-          const SizedBox(height: 12),
-          // Date filters
-          Row(
-            children: [
-              Expanded(
-                child: _buildDateButton(
-                  label: _startDate == null
-                      ? 'Start Date'
-                      : _formatFilterDate(_startDate!),
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: _startDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2100),
-                    );
-                    setState(() {
-                      _startDate = d;
-                    });
-                  },
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _headerFadeAnimation,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF6366F1).withOpacity(0.4),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.explore_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Discover Jobs',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Find your perfect opportunity',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Search-like filter button
+                    GestureDetector(
+                      onTap: _showFilterBottomSheet,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.15),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.tune_rounded,
+                              color: Colors.white.withOpacity(0.9),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Tap to filter jobs...',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            if (_activeFiltersCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF10B981),
+                                      Color(0xFF059669),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$_activeFiltersCount active',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickFilters() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildQuickFilterChip(
+              icon: Icons.near_me_rounded,
+              label: _distanceRange < 50
+                  ? '≤${_distanceRange.toInt()}km'
+                  : 'Any Distance',
+              isActive: _distanceRange < 50,
+              color: const Color(0xFF3B82F6),
+              onTap: () => _showFilterBottomSheet(),
+            ),
+            const SizedBox(width: 10),
+            _buildQuickFilterChip(
+              icon: Icons.payments_rounded,
+              label: _minPay > 0 || _maxPay < 100
+                  ? 'RM${_minPay.toInt()}-${_maxPay.toInt()}'
+                  : 'Any Salary',
+              isActive: _minPay > 0 || _maxPay < 100,
+              color: const Color(0xFF8B5CF6),
+              onTap: () => _showFilterBottomSheet(),
+            ),
+            const SizedBox(width: 10),
+            _buildQuickFilterChip(
+              icon: Icons.calendar_month_rounded,
+              label: _startDate != null || _endDate != null
+                  ? _formatDateRange()
+                  : 'Any Date',
+              isActive: _startDate != null || _endDate != null,
+              color: const Color(0xFF10B981),
+              onTap: () => _showFilterBottomSheet(),
+            ),
+            if (_activeFiltersCount > 0) ...[
               const SizedBox(width: 10),
-              Expanded(
-                child: _buildDateButton(
-                  label: _endDate == null
-                      ? 'End Date'
-                      : _formatFilterDate(_endDate!),
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: _endDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2100),
-                    );
-                    setState(() {
-                      _endDate = d;
-                    });
-                  },
-                ),
-              ),
-              if (_startDate != null || _endDate != null) ...[
-                const SizedBox(width: 10),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _startDate = null;
-                      _endDate = null;
-                    });
-                  },
-                  icon: const Icon(Icons.clear, size: 20),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.grey.shade100,
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _distanceRange = 50.0;
+                    _minPay = 0;
+                    _maxPay = 100;
+                    _startDate = null;
+                    _endDate = null;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.clear_rounded,
+                        size: 16,
+                        color: Colors.red.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Clear All',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(fontSize: 14),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-          prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade600),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 14,
-          ),
+          ],
         ),
-        onChanged: (_) => setState(() {}),
       ),
     );
   }
 
-  Widget _buildDateButton({
+  Widget _buildQuickFilterChip({
+    required IconData icon,
     required String label,
+    required bool isActive,
+    required Color color,
     required VoidCallback onTap,
   }) {
-    final isSelected = !label.contains('Date');
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(12),
+          color: isActive ? color.withOpacity(0.15) : Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isActive ? color : Colors.grey.shade300,
+            width: isActive ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isActive
+                  ? color.withOpacity(0.2)
+                  : Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.calendar_today_outlined,
-              size: 18,
-              color: isSelected
-                  ? const Color(0xFF1565C0)
-                  : Colors.grey.shade600,
+              icon,
+              size: 16,
+              color: isActive ? color : Colors.grey.shade600,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isSelected
-                    ? const Color(0xFF1565C0)
-                    : Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+                color: isActive ? color : Colors.grey.shade700,
               ),
             ),
           ],
@@ -329,7 +451,808 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     );
   }
 
-  String _formatFilterDate(DateTime d) {
+  String _formatDateRange() {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    if (_startDate != null && _endDate != null) {
+      return '${_startDate!.day} ${months[_startDate!.month - 1]} - ${_endDate!.day} ${months[_endDate!.month - 1]}';
+    } else if (_startDate != null) {
+      return 'From ${_startDate!.day} ${months[_startDate!.month - 1]}';
+    } else if (_endDate != null) {
+      return 'Until ${_endDate!.day} ${months[_endDate!.month - 1]}';
+    }
+    return 'Any Date';
+  }
+
+  Widget _buildJobsList() {
+    return StreamBuilder<List<Job>>(
+      stream: _service.streamJobs(
+        minPay: _minPay > 0 ? _minPay : null,
+        maxPay: _maxPay < 100 ? _maxPay : null,
+        startDate: _startDate,
+        endDate: _endDate,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+            ),
+          );
+        }
+
+        var jobs = snapshot.data ?? [];
+
+        // Apply distance filter client-side (since we need user's location)
+        if (_distanceRange < 50 && _userGeoLocation != null) {
+          jobs = jobs.where((job) {
+            final distance = _calculateJobDistance(job);
+            if (distance == null) return true; // Include jobs without geo data
+            return distance <= _distanceRange;
+          }).toList();
+        }
+
+        if (jobs.isEmpty) {
+          return SliverFillRemaining(child: _buildEmptyState());
+        }
+
+        // Sort by match score
+        final scored = jobs.map((j) => MapEntry(j, _matchScore(j))).toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final job = scored[index].key;
+              final score = scored[index].value;
+              return _JobCard(
+                job: job,
+                isRecommended: score >= 0.6,
+                distance: _calculateJobDistance(job),
+                animationDelay: index * 100,
+                onTap: () {
+                  if (job.status == 'open') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StudentJobDetailsPage(
+                          job: job,
+                          distance: _calculateJobDistance(job),
+                        ),
+                      ),
+                    );
+                  }
+                },
+              );
+            }, childCount: scored.length),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: Color(0xFF6366F1),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'No jobs found',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your filters',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
+          if (_activeFiltersCount > 0)
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _distanceRange = 50.0;
+                  _minPay = 0;
+                  _maxPay = 100;
+                  _startDate = null;
+                  _endDate = null;
+                });
+              },
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reset Filters'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  double _matchScore(Job job) {
+    double score = 0;
+    if (_userSkills.isNotEmpty && job.skillsRequired.isNotEmpty) {
+      final overlap = job.skillsRequired
+          .where((s) => _userSkills.contains(s))
+          .length;
+      score += overlap / job.skillsRequired.length;
+    }
+
+    final distance = _calculateJobDistance(job);
+    if (distance != null) {
+      if (distance <= 5)
+        score += 0.4;
+      else if (distance <= 15)
+        score += 0.3;
+      else if (distance <= 30)
+        score += 0.2;
+      else if (distance <= 50)
+        score += 0.1;
+    } else if (_userLocation.isNotEmpty && job.location.isNotEmpty) {
+      if (_userLocation.toLowerCase().trim() ==
+          job.location.toLowerCase().trim()) {
+        score += 0.3;
+      }
+    }
+
+    if (_startDate != null && _endDate != null) {
+      final overlaps =
+          !(job.endDate.isBefore(_startDate!) ||
+              job.startDate.isAfter(_endDate!));
+      if (overlaps) score += 0.2;
+    }
+
+    return score > 1 ? 1 : score;
+  }
+
+  void _navigateToPage(int index) {
+    // If we're inside MainShell, use smooth navigation
+    final shellState = MainShellState.shellKey.currentState;
+    if (shellState != null && !widget.showBottomNav) {
+      shellState.navigateToTab(index);
+      return;
+    }
+    
+    // Fallback to traditional navigation
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.of(context).pushReplacementNamed('/my_jobs');
+        break;
+      case 2:
+        Navigator.of(context).pushReplacementNamed('/message');
+        break;
+      case 3:
+        Navigator.of(context).pushReplacementNamed('/profile');
+        break;
+    }
+  }
+}
+
+// ============================================================================
+// FILTER BOTTOM SHEET
+// ============================================================================
+
+class _FilterBottomSheet extends StatefulWidget {
+  final double distanceRange;
+  final double minPay;
+  final double maxPay;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final Function(double, double, double, DateTime?, DateTime?) onApply;
+  final VoidCallback onReset;
+
+  const _FilterBottomSheet({
+    required this.distanceRange,
+    required this.minPay,
+    required this.maxPay,
+    required this.startDate,
+    required this.endDate,
+    required this.onApply,
+    required this.onReset,
+  });
+
+  @override
+  State<_FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<_FilterBottomSheet> {
+  late double _distance;
+  late double _minPay;
+  late double _maxPay;
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _distance = widget.distanceRange;
+    _minPay = widget.minPay;
+    _maxPay = widget.maxPay;
+    _startDate = widget.startDate;
+    _endDate = widget.endDate;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 48,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Filter Jobs',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      Text(
+                        'Customize your search',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.grey.shade600,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Colors.grey.shade200),
+          // Filters content
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Distance Range
+                  _buildSectionHeader(
+                    icon: Icons.near_me_rounded,
+                    title: 'Distance Range',
+                    color: const Color(0xFF3B82F6),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDistanceSlider(),
+                  const SizedBox(height: 28),
+
+                  // Salary Range
+                  _buildSectionHeader(
+                    icon: Icons.payments_rounded,
+                    title: 'Hourly Rate (RM)',
+                    color: const Color(0xFF8B5CF6),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSalarySlider(),
+                  const SizedBox(height: 28),
+
+                  // Date Range
+                  _buildSectionHeader(
+                    icon: Icons.calendar_month_rounded,
+                    title: 'Date Range',
+                    color: const Color(0xFF10B981),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDatePickers(),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+          // Bottom actions
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: widget.onReset,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        'Reset All',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          widget.onApply(
+                            _distance,
+                            _minPay,
+                            _maxPay,
+                            _startDate,
+                            _endDate,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Apply Filters',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDistanceSlider() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Within',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _distance >= 50 ? 'Any distance' : '${_distance.toInt()} km',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFF3B82F6),
+              inactiveTrackColor: Colors.grey.shade300,
+              thumbColor: const Color(0xFF3B82F6),
+              overlayColor: const Color(0xFF3B82F6).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+              trackHeight: 6,
+            ),
+            child: Slider(
+              value: _distance,
+              min: 5,
+              max: 50,
+              divisions: 9,
+              onChanged: (v) => setState(() => _distance = v),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '5 km',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+              Text(
+                '50+ km',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSalarySlider() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Hourly rate',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'RM ${_minPay.toInt()} - ${_maxPay >= 100 ? '100+' : _maxPay.toInt()}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFF8B5CF6),
+              inactiveTrackColor: Colors.grey.shade300,
+              thumbColor: const Color(0xFF8B5CF6),
+              overlayColor: const Color(0xFF8B5CF6).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+              trackHeight: 6,
+            ),
+            child: RangeSlider(
+              values: RangeValues(_minPay, _maxPay),
+              min: 0,
+              max: 100,
+              divisions: 20,
+              onChanged: (v) {
+                setState(() {
+                  _minPay = v.start;
+                  _maxPay = v.end;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'RM 0',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+              Text(
+                'RM 100+',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDatePickers() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDateButton(
+            label: _startDate != null ? _formatDate(_startDate!) : 'Start Date',
+            isSelected: _startDate != null,
+            onTap: () async {
+              final d = await showDatePicker(
+                context: context,
+                initialDate: _startDate ?? DateTime.now(),
+                firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: Color(0xFF10B981),
+                        onPrimary: Colors.white,
+                        surface: Colors.white,
+                        onSurface: Color(0xFF1E293B),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (d != null) setState(() => _startDate = d);
+            },
+            onClear: _startDate != null
+                ? () => setState(() => _startDate = null)
+                : null,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildDateButton(
+            label: _endDate != null ? _formatDate(_endDate!) : 'End Date',
+            isSelected: _endDate != null,
+            onTap: () async {
+              final d = await showDatePicker(
+                context: context,
+                initialDate: _endDate ?? _startDate ?? DateTime.now(),
+                firstDate:
+                    _startDate ??
+                    DateTime.now().subtract(const Duration(days: 30)),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: Color(0xFF10B981),
+                        onPrimary: Colors.white,
+                        surface: Colors.white,
+                        onSurface: Color(0xFF1E293B),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (d != null) setState(() => _endDate = d);
+            },
+            onClear: _endDate != null
+                ? () => setState(() => _endDate = null)
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF10B981).withOpacity(0.1)
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade200,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 18,
+              color: isSelected
+                  ? const Color(0xFF10B981)
+                  : Colors.grey.shade500,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected
+                      ? const Color(0xFF10B981)
+                      : Colors.grey.shade600,
+                ),
+              ),
+            ),
+            if (onClear != null)
+              GestureDetector(
+                onTap: onClear,
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
     final months = [
       'Jan',
       'Feb',
@@ -346,355 +1269,393 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     ];
     return '${d.day} ${months[d.month - 1]}';
   }
+}
 
-  Widget _jobTile(Job job, bool recommended) {
-    final distance = _calculateJobDistance(job);
+// ============================================================================
+// JOB CARD WIDGET
+// ============================================================================
 
-    // Format date range
-    String formatDate(DateTime d) {
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      return '${d.day} ${months[d.month - 1]} ${d.year}';
-    }
+class _JobCard extends StatefulWidget {
+  final Job job;
+  final bool isRecommended;
+  final double? distance;
+  final int animationDelay;
+  final VoidCallback onTap;
 
+  const _JobCard({
+    required this.job,
+    required this.isRecommended,
+    required this.distance,
+    required this.animationDelay,
+    required this.onTap,
+  });
+
+  @override
+  State<_JobCard> createState() => _JobCardState();
+}
+
+class _JobCardState extends State<_JobCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    Future.delayed(Duration(milliseconds: widget.animationDelay), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime d) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final job = widget.job;
     final dateRange =
-        '${formatDate(job.startDate)} - ${formatDate(job.endDate)}';
-
-    // Format time range
+        '${_formatDate(job.startDate)} - ${_formatDate(job.endDate)}';
     String? timeRange;
     if (job.startTime != null && job.endTime != null) {
       timeRange = '${job.startTime} - ${job.endTime}';
     }
 
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Opacity(opacity: _fadeAnimation.value, child: child),
+        );
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0A1628).withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with gradient
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: widget.isRecommended
+                        ? [const Color(0xFF059669), const Color(0xFF10B981)]
+                        : [const Color(0xFF0A1628), const Color(0xFF1A3A5C)],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            job.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (widget.isRecommended)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star_rounded,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Match',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.white.withOpacity(0.8),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            job.location,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.85),
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    // Info chips row
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          icon: Icons.calendar_today_rounded,
+                          label: dateRange,
+                          color: const Color(0xFF3B82F6),
+                        ),
+                      ],
+                    ),
+                    if (timeRange != null) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          _buildInfoChip(
+                            icon: Icons.access_time_rounded,
+                            label: timeRange,
+                            color: const Color(0xFFFF7043),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    // Bottom row with salary and distance
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF8B5CF6).withOpacity(0.15),
+                                const Color(0xFF7C3AED).withOpacity(0.1),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.payments_rounded,
+                                size: 16,
+                                color: Color(0xFF7C3AED),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'RM ${job.pay}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF7C3AED),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        if (widget.distance != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getDistanceColor(widget.distance!),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _getDistanceTextColor(
+                                  widget.distance!,
+                                ).withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.near_me_rounded,
+                                  size: 16,
+                                  color: _getDistanceTextColor(
+                                    widget.distance!,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  LocationService.formatDistance(
+                                    widget.distance!,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _getDistanceTextColor(
+                                      widget.distance!,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0A1628),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: Title and Recommended badge
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    job.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F1E3C),
-                    ),
-                  ),
-                ),
-                if (recommended)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Recommended',
-                      style: TextStyle(
-                        color: Color(0xFF2E7D32),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Info rows
-            _buildInfoRow(
-              Icons.location_on_outlined,
-              job.location,
-              const Color(0xFF5C6BC0),
-            ),
-            const SizedBox(height: 10),
-            _buildInfoRow(
-              Icons.calendar_today_outlined,
-              dateRange,
-              const Color(0xFF26A69A),
-            ),
-            if (timeRange != null) ...[
-              const SizedBox(height: 10),
-              _buildInfoRow(
-                Icons.access_time_outlined,
-                timeRange,
-                const Color(0xFFFF7043),
-              ),
-            ],
-            const SizedBox(height: 16),
-
-            // Salary and Distance row
-            Row(
-              children: [
-                // Salary chip
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3E5F5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.payments_outlined,
-                        size: 16,
-                        color: Color(0xFF7B1FA2),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'RM ${job.pay}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF7B1FA2),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-
-                // Distance chip
-                if (distance != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getDistanceColor(distance),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.near_me_outlined,
-                          size: 16,
-                          color: _getDistanceTextColor(distance),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          LocationService.formatDistance(distance),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _getDistanceTextColor(distance),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: job.status != 'open'
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => StudentJobDetailsPage(
-                                  job: job,
-                                  distance: distance,
-                                ),
-                              ),
-                            );
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F1E3C),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          job.status != 'open'
-                              ? Icons.block
-                              : Icons.visibility_outlined,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          job.status != 'open' ? 'Unavailable' : 'View Details',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  /// Helper widget to build info rows with icon and text
-  Widget _buildInfoRow(IconData icon, String text, Color iconColor) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF424242),
-              fontWeight: FontWeight.w500,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Get background color for distance badge based on distance
   Color _getDistanceColor(double distanceKm) {
-    if (distanceKm <= 5) {
+    if (distanceKm <= 5)
       return Colors.green.shade50;
-    } else if (distanceKm <= 15) {
+    else if (distanceKm <= 15)
       return Colors.blue.shade50;
-    } else if (distanceKm <= 30) {
+    else if (distanceKm <= 30)
       return Colors.orange.shade50;
-    } else {
+    else
       return Colors.grey.shade100;
-    }
   }
 
-  /// Get text color for distance badge based on distance
   Color _getDistanceTextColor(double distanceKm) {
-    if (distanceKm <= 5) {
+    if (distanceKm <= 5)
       return Colors.green.shade700;
-    } else if (distanceKm <= 15) {
+    else if (distanceKm <= 15)
       return Colors.blue.shade700;
-    } else if (distanceKm <= 30) {
+    else if (distanceKm <= 30)
       return Colors.orange.shade700;
-    } else {
+    else
       return Colors.grey.shade700;
-    }
-  }
-
-  void _navigateToPage(int index) {
-    switch (index) {
-      case 0:
-        // Already on Discovery
-        break;
-      case 1:
-        Navigator.of(context).pushReplacementNamed('/my_jobs');
-        break;
-      case 2:
-        Navigator.of(context).pushReplacementNamed('/message');
-        break;
-      case 3:
-        Navigator.of(context).pushReplacementNamed('/profile');
-        break;
-    }
-  }
-
-  double _matchScore(Job job) {
-    double score = 0;
-    if (_userSkills.isNotEmpty && job.skillsRequired.isNotEmpty) {
-      final overlap = job.skillsRequired
-          .where((s) => _userSkills.contains(s))
-          .length;
-      score += overlap / job.skillsRequired.length;
-    }
-
-    // Location matching - use distance if geo data available
-    final distance = _calculateJobDistance(job);
-    if (distance != null) {
-      // Closer jobs get higher scores
-      // Within 5km: +0.4, 5-15km: +0.3, 15-30km: +0.2, 30-50km: +0.1
-      if (distance <= 5) {
-        score += 0.4;
-      } else if (distance <= 15) {
-        score += 0.3;
-      } else if (distance <= 30) {
-        score += 0.2;
-      } else if (distance <= 50) {
-        score += 0.1;
-      }
-    } else if (_userLocation.isNotEmpty && job.location.isNotEmpty) {
-      // Fallback to text matching if no geo data
-      if (_userLocation.toLowerCase().trim() ==
-          job.location.toLowerCase().trim()) {
-        score += 0.3;
-      }
-    }
-
-    if (_startDate != null && _endDate != null) {
-      final overlaps =
-          !(job.endDate.isBefore(_startDate!) ||
-              job.startDate.isAfter(_endDate!));
-      if (overlaps) score += 0.2;
-    }
-    if (score > 1) score = 1;
-    return score;
-  }
-
-  num? _parseNum(String s) {
-    if (s.isEmpty) return null;
-    final v = num.tryParse(s);
-    return v;
   }
 }

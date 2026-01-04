@@ -7,7 +7,7 @@ import 'payment_rating/withdraw_earning_page.dart';
 import 'payment_rating/employer_transfer_page.dart';
 import 'payment_rating/earnings_history_page.dart';
 import 'payment_rating/employer_review_page.dart';
-import 'components/bottom_nav_bar.dart';
+import 'components/main_shell.dart';
 import 'job_posting_management/discovery_page.dart';
 import 'job_posting_management/my_jobs_page.dart';
 import 'matching_chatting/message_page.dart';
@@ -17,13 +17,13 @@ import 'services/firestore_service.dart';
 import 'dev/seed_page.dart';
 import 'authentication_profile/edit_profile_page.dart';
 import 'payment_rating/employer_topup_page.dart';
+import 'authentication_profile/auth_tabs_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await FirestoreService().ensureUserProfile();
   runApp(const MyApp());
 }
 
@@ -35,11 +35,43 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      // Check if user is logged in, show appropriate page
-      home: FirebaseAuth.instance.currentUser != null
-          ? const DiscoveryPage()
-          : const DiscoveryPage(),
+      // Check if user is logged in, show login or main app
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // Show loading while checking auth state
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          
+          // If user is logged in, show main app
+          if (snapshot.hasData && snapshot.data != null) {
+            // Ensure user profile exists
+            FirestoreService().ensureUserProfile();
+            return MainShell(
+              key: MainShellState.shellKey,
+              discoveryPage: const DiscoveryPage(showBottomNav: false),
+              myJobsPage: const MyJobsPage(showBottomNav: false),
+              messagePage: const MessagePage(showBottomNav: false),
+              profilePage: const ProfilePage(showBottomNav: false),
+            );
+          }
+          
+          // If not logged in, show login page
+          return const AuthTabsPage();
+        },
+      ),
       routes: {
+        '/auth': (context) => const AuthTabsPage(),
+        '/main': (context) => MainShell(
+          key: MainShellState.shellKey,
+          discoveryPage: const DiscoveryPage(showBottomNav: false),
+          myJobsPage: const MyJobsPage(showBottomNav: false),
+          messagePage: const MessagePage(showBottomNav: false),
+          profilePage: const ProfilePage(showBottomNav: false),
+        ),
         '/discovery': (context) => const DiscoveryPage(),
         '/my_jobs': (context) => const MyJobsPage(),
         '/message': (context) => const MessagePage(),
@@ -263,16 +295,6 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-    
-    bottomNavigationBar: CustomBottomNavBar(
-    selectedIndex: 0, // 0 for Discover, 1 for My Jobs, 2 for Messages, 3 for Profile
-    onTap: (index) {
-    // Handle navigation based on index
-    debugPrint('Tab $index clicked');
-      },
-    ),
-    
-    
     );
   }
 }

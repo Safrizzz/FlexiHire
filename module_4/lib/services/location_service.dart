@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
+
 import 'package:http/http.dart' as http;
 
 /// A simple class to hold latitude and longitude coordinates

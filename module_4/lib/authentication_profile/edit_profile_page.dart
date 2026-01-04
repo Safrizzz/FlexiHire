@@ -83,33 +83,56 @@ class _EditProfilePageState extends State<EditProfilePage>
   }
 
   Future<void> _load() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      setState(() => _loading = false);
-      return;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      
+      // Add timeout to prevent infinite loading
+      final p = await _service.getUserProfile(uid).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('EditProfilePage: Timeout loading profile');
+          return null;
+        },
+      );
+      
+      if (p != null) {
+        _nameCtrl.text = p.displayName;
+        _phoneCtrl.text = p.phone;
+        _emailCtrl.text = p.email;
+        _locationAddress = p.location;
+        _geoLocation = p.geoLocation;
+        _skillsCtrl.text = p.skills.join(', ');
+        // Validate dropdown values - only use if they exist in options
+        _selectedGender = _genderOptions.contains(p.gender) ? p.gender : '';
+        _selectedEthnicity = _ethnicityOptions.contains(p.ethnicity) ? p.ethnicity : '';
+        _dateOfBirth = p.dateOfBirth;
+        _selectedLanguage = _languageOptions.contains(p.languageProficiency) ? p.languageProficiency : '';
+        _bankNameCtrl.text = p.bankName;
+        _accountHolderCtrl.text = p.accountHolderName;
+        _bankAccountCtrl.text = p.bankAccountNumber;
+        _jobExperiences = List.from(p.jobExperience);
+        _documents = List.from(p.documents);
+        _role = p.role;
+      } else {
+        _emailCtrl.text = FirebaseAuth.instance.currentUser?.email ?? '';
+      }
+    } catch (e) {
+      debugPrint('EditProfilePage: Error loading profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    final p = await _service.getUserProfile(uid);
-    if (p != null) {
-      _nameCtrl.text = p.displayName;
-      _phoneCtrl.text = p.phone;
-      _emailCtrl.text = p.email;
-      _locationAddress = p.location;
-      _geoLocation = p.geoLocation;
-      _skillsCtrl.text = p.skills.join(', ');
-      _selectedGender = p.gender;
-      _selectedEthnicity = p.ethnicity;
-      _dateOfBirth = p.dateOfBirth;
-      _selectedLanguage = p.languageProficiency;
-      _bankNameCtrl.text = p.bankName;
-      _accountHolderCtrl.text = p.accountHolderName;
-      _bankAccountCtrl.text = p.bankAccountNumber;
-      _jobExperiences = List.from(p.jobExperience);
-      _documents = List.from(p.documents);
-      _role = p.role;
-    } else {
-      _emailCtrl.text = FirebaseAuth.instance.currentUser?.email ?? '';
-    }
-    setState(() => _loading = false);
   }
 
   Future<void> _save() async {
@@ -738,6 +761,29 @@ class _EditProfilePageState extends State<EditProfilePage>
                               initialDate: startDate ?? DateTime.now(),
                               firstDate: DateTime(2000),
                               lastDate: DateTime.now(),
+                              initialEntryMode: DatePickerEntryMode.calendar,
+                              builder: (context, child) {
+                                final theme = Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: const Color(0xFF0F1E3C),
+                                    onPrimary: Colors.white,
+                                    surface: Colors.white,
+                                    onSurface: Colors.black87,
+                                  ),
+                                  dialogTheme: DialogThemeData(
+                                    backgroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                  textButtonTheme: TextButtonThemeData(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF0F1E3C),
+                                    ),
+                                  ),
+                                );
+                                return Theme(data: theme, child: child!);
+                              },
                             );
                             if (picked != null) {
                               setModalState(() => startDate = picked);
@@ -786,6 +832,29 @@ class _EditProfilePageState extends State<EditProfilePage>
                               initialDate: endDate ?? DateTime.now(),
                               firstDate: DateTime(2000),
                               lastDate: DateTime.now(),
+                              initialEntryMode: DatePickerEntryMode.calendar,
+                              builder: (context, child) {
+                                final theme = Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: const Color(0xFF0F1E3C),
+                                    onPrimary: Colors.white,
+                                    surface: Colors.white,
+                                    onSurface: Colors.black87,
+                                  ),
+                                  dialogTheme: DialogThemeData(
+                                    backgroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                  textButtonTheme: TextButtonThemeData(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF0F1E3C),
+                                    ),
+                                  ),
+                                );
+                                return Theme(data: theme, child: child!);
+                              },
                             );
                             if (picked != null) {
                               setModalState(() => endDate = picked);
@@ -1465,6 +1534,25 @@ class _EditProfilePageState extends State<EditProfilePage>
           initialDate: value ?? DateTime(2000, 1, 1),
           firstDate: DateTime(1950),
           lastDate: DateTime.now(),
+          initialEntryMode: DatePickerEntryMode.calendar,
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: Color(0xFF0F1E3C),
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Colors.black87,
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F1E3C),
+                  ),
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
         );
         onChanged(picked);
       },

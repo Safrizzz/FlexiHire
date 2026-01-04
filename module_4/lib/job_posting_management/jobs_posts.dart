@@ -190,6 +190,7 @@ class _JobPostingPageState extends State<JobPostingPage> {
       employerId: employerId,
       createdAt: DateTime.now(),
       status: job.status,
+      microShifts: job.microShifts, // Pass micro-shifts to backend
     );
   }
 
@@ -202,7 +203,7 @@ class _JobPostingPageState extends State<JobPostingPage> {
       geoLocation: beJob.geoLocation, // Pass geo location to UI
       payRate: beJob.pay.toDouble(),
       description: beJob.description,
-      microShifts: const [],
+      microShifts: beJob.microShifts, // Get micro-shifts from backend
       status: beJob.status,
       applicants: const [],
       hires: const [],

@@ -6,6 +6,7 @@ class Application {
   final String applicantId;
   final String status;
   final DateTime createdAt;
+  final List<DateTime> selectedDates; // Dates the student wants to work
 
   Application({
     required this.id,
@@ -13,6 +14,7 @@ class Application {
     required this.applicantId,
     required this.status,
     required this.createdAt,
+    this.selectedDates = const [],
   });
 
   factory Application.fromMap(String id, Map<String, dynamic> data) {
@@ -23,12 +25,22 @@ class Application {
       if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
       return DateTime.now();
     }
+
+    // Parse selected dates
+    List<DateTime> dates = [];
+    if (data['selectedDates'] != null && data['selectedDates'] is List) {
+      dates = (data['selectedDates'] as List)
+          .map((d) => toDate(d))
+          .toList();
+    }
+
     return Application(
       id: id,
       jobId: data['jobId'] ?? '',
       applicantId: data['applicantId'] ?? '',
       status: data['status'] ?? 'applied',
       createdAt: toDate(data['createdAt']),
+      selectedDates: dates,
     );
   }
 
@@ -38,6 +50,25 @@ class Application {
       'applicantId': applicantId,
       'status': status,
       'createdAt': createdAt.toIso8601String(),
+      'selectedDates': selectedDates.map((d) => d.toIso8601String()).toList(),
     };
+  }
+
+  Application copyWith({
+    String? id,
+    String? jobId,
+    String? applicantId,
+    String? status,
+    DateTime? createdAt,
+    List<DateTime>? selectedDates,
+  }) {
+    return Application(
+      id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
+      applicantId: applicantId ?? this.applicantId,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      selectedDates: selectedDates ?? this.selectedDates,
+    );
   }
 }

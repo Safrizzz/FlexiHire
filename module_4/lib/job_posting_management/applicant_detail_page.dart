@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 import '../matching_chatting/message_page.dart';
@@ -9,6 +10,7 @@ class ApplicantDetailPage extends StatefulWidget {
   final String applicationId;
   final String currentStatus;
   final Job? job; // Optional job info
+  final List<DateTime>? selectedDates; // Dates the student selected to work
 
   const ApplicantDetailPage({
     super.key,
@@ -16,6 +18,7 @@ class ApplicantDetailPage extends StatefulWidget {
     required this.applicationId,
     required this.currentStatus,
     this.job,
+    this.selectedDates,
   });
 
   @override
@@ -93,7 +96,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
               ),
             ),
             const SizedBox(width: 12),
-            const Text('Remove Application?'),
+            const Expanded(child: Text('Remove Application?')),
           ],
         ),
         content: const Text(
@@ -665,6 +668,10 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         // Application Status Card
         _buildStatusCard(),
 
+        // Selected Work Dates Card (if micro-shifts selected)
+        if (widget.selectedDates != null && widget.selectedDates!.isNotEmpty)
+          _buildSelectedDatesCard(),
+
         // Applicant Info Card
         _buildApplicantCard(),
 
@@ -679,6 +686,151 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
 
         const SizedBox(height: 120),
       ],
+    );
+  }
+
+  Widget _buildSelectedDatesCard() {
+    final sortedDates = widget.selectedDates!.toList()..sort();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF10B981).withOpacity(0.1),
+            const Color(0xFF059669).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF10B981).withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.calendar_month,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Selected Work Dates',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Applicant wants to work on ${sortedDates.length} ${sortedDates.length == 1 ? 'date' : 'dates'}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: sortedDates.map((date) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF10B981).withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.event,
+                        size: 14,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('EEEE').format(date),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('d MMM yyyy').format(date),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF065F46),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 

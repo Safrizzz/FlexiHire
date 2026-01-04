@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// ============================================================================
-// THIS IS THE PAGE WIDGET - It tells Flutter this is a page that will change
-// ============================================================================
+
 class WithdrawEarningPage extends StatefulWidget {
   const WithdrawEarningPage({super.key});
 
@@ -12,53 +10,57 @@ class WithdrawEarningPage extends StatefulWidget {
   State<WithdrawEarningPage> createState() => _WithdrawEarningsPageState();
 }
 
-// ============================================================================
-// THIS IS THE PAGE STATE - Where all the code and UI happens
-// ============================================================================
 class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
   final _service = FirestoreService();
-  
-  // ========================================================================
-  // FORM KEY - This is like a remote control for the entire form
-  // We use it to validate all fields when user clicks submit
-  // ========================================================================
   final _formKey = GlobalKey<FormState>();
   
-  // ========================================================================
-  // TEXT CONTROLLERS - These catch and store whatever the user types
-  // Think of them like mailboxes that hold the user's input
-  // ========================================================================
+  // Text Controllers
   final _nameController = TextEditingController();
-  // Stores the name the user types (starts with 'Eyman...')
-  
   final _bankController = TextEditingController();
-  // Stores the bank name the user types
-  
   final _accountController = TextEditingController();
-  // Stores the account number the user types
-  
   final _withdrawalController = TextEditingController();
-  // Shared input text style so all fields match the RM prefix
-  final TextStyle _inputTextStyle = const TextStyle(
-    color: Color.fromARGB(255, 12, 12, 12),
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-  );
-  // Stores the withdrawal amount the user types
+  
+  // Loading & profile state
+  bool _loading = true;
+  bool _hasBankDetails = false;
+  double _availableBalance = 0.0;
 
-  // ========================================================================
-  // VARIABLE - How much money can be withdrawn
-  // double = number with decimals (like 150.50)
-  // ========================================================================
-  double availableEarnings = 10000.00;
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileAndBalance();
+  }
 
-  // ========================================================================
-  // DISPOSE METHOD - Clean up when page closes to prevent memory leaks
-  // Think of it like turning off the lights before leaving a room
-  // ========================================================================
+  Future<void> _loadProfileAndBalance() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      // Load user profile for bank details
+      final profile = await _service.getUserProfile(uid);
+      if (profile != null) {
+        _nameController.text = profile.accountHolderName;
+        _bankController.text = profile.bankName;
+        _accountController.text = profile.bankAccountNumber;
+        _hasBankDetails = profile.bankName.isNotEmpty && 
+                          profile.accountHolderName.isNotEmpty && 
+                          profile.bankAccountNumber.isNotEmpty;
+      }
+
+      // Load balance
+      _availableBalance = await _service.getBalance(uid);
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+    }
+
+    if (mounted) setState(() => _loading = false);
+  }
+
   @override
   void dispose() {
-    // Tell each controller to stop listening and free up memory
     _nameController.dispose();
     _bankController.dispose();
     _accountController.dispose();
@@ -66,467 +68,588 @@ class _WithdrawEarningsPageState extends State<WithdrawEarningPage> {
     super.dispose();
   }
 
-  // ========================================================================
-  // SUBMIT WITHDRAWAL FUNCTION - Runs when user clicks the Submit button
-  // ========================================================================
   Future<void> _submitWithdrawal() async {
+    if (!_hasBankDetails) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please add your bank details in Edit Profile first'),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
+    
     final amount = double.tryParse(_withdrawalController.text) ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amount must be greater than 0')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Amount must be greater than 0'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
       return;
     }
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final bal = uid.isEmpty ? 0 : await _service.getBalance(uid);
-    if (!mounted) return;
-    if (amount > bal) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance')));
+
+    if (amount > _availableBalance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Insufficient balance'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
       return;
     }
+
     await _service.recordWithdrawal(
       amount: amount,
       bankName: _bankController.text,
       accountNumber: _accountController.text,
     );
+    
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal request submitted')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Withdrawal request submitted successfully!'),
+        backgroundColor: Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
     Navigator.pop(context);
   }
 
-  // ========================================================================
-  // BUILD METHOD - This builds and displays the entire page UI
-  // This runs every time the page needs to redraw
-  // ========================================================================
   @override
   Widget build(BuildContext context) {
-    // =====================================================================
-    // SCAFFOLD - Basic structure of the Android screen
-    // =====================================================================
     return Scaffold(
-      // Set the background color to dark blue
-      backgroundColor: const Color.fromARGB(255, 250, 250, 251),
-      
-      // ===================================================================
-      // APP BAR - The top header of the page
-      // ===================================================================
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F1E3C),
-        elevation: 0, // No shadow under the app bar
-        
-        // LEFT SIDE - Back arrow button
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          // When clicked, go back to the previous page
           onPressed: () => Navigator.pop(context),
         ),
-        
-        // MIDDLE - Title text
         title: const Text(
           'Withdraw Earnings',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        
-        // RIGHT SIDE - Info button
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
-            // When clicked, show a popup dialog with info
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Withdrawal Info'),
-                  content: const Text(
-                    'Withdrawal requests are processed immediately. Ensure all information is accurate.',
-                  ),
-                  actions: [
-                    // OK button to close the dialog
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Available Earnings Card
+                  _buildEarningsCard(),
+                  const SizedBox(height: 24),
+                  
+                  // Bank Details Section
+                  _buildBankDetailsSection(),
+                  const SizedBox(height: 24),
+                  
+                  // Withdrawal Amount Section
+                  _buildWithdrawalSection(),
+                  const SizedBox(height: 24),
+                  
+                  // Disclaimer Section
+                  _buildDisclaimerCard(),
+                  const SizedBox(height: 32),
+                  
+                  // Submit Button
+                  _buildSubmitButton(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildEarningsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0F1E3C), Color(0xFF1A3A5C)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F1E3C).withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      
-      // ===================================================================
-      // BODY - Main content area of the page
-      // ===================================================================
-      body: SingleChildScrollView(
-        // SingleChildScrollView = Makes the page scrollable if content is too long
-        child: Padding(
-          // Padding = Add space around everything (16 pixels)
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            // Column = Stack everything vertically (top to bottom)
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-            
-
-
-      // ============================================================
-      // AVAILABLE EARNINGS CARD - Shows how much money is available
-      // ============================================================
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20), // Space inside the box
-
-        // The styling of the box
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A2F5C), // Darker blue color
-          borderRadius: BorderRadius.circular(12), // Rounded corners
-          border: Border.all(
-            color: const Color(0xFF1A2F5C), // Border color
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4), // Stronger shadow (35% opacity)
-              spreadRadius: 0,                          // Subtle spread
-              blurRadius: 16,                           // Softer, larger blur
-              offset: const Offset(0, 8),               // Slightly lower offset for prominence
-            ),
-          ],
-        ),
-
-        child: Column(
-          // Stack items vertically inside the box
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Label text
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
               const Text(
-                'Available Earnings',
+                'Available Balance',
                 style: TextStyle(
-                  color: Color.fromARGB(255, 255, 255, 255),
-                  fontSize: 17,
-                  fontWeight: FontWeight.w400,
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            const SizedBox(height: 8), // Add 8 pixels of space
-
-            // Amount text - Shows the earnings amount
-            FutureBuilder<double>(
-              future: _service.getBalance(FirebaseAuth.instance.currentUser?.uid ?? ''),
-              // toStringAsFixed(2) = Convert number to text with 2 decimals
-              // Example: 150.5 becomes "150.50"
-              builder: (context, snapshot) {
-                final bal = snapshot.data ?? availableEarnings;
-                return Text(
-                  'RM ${bal.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                  ),
-                );
-              },
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'RM ${_availableBalance.toStringAsFixed(2)}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle, color: Colors.greenAccent, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Ready to withdraw',
+                  style: TextStyle(color: Colors.greenAccent, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      const SizedBox(height: 24), // Add space after the card
+    );
+  }
 
-
-
-
-      
-              
-              // ============================================================
-              // FORM - Container for all the input fields
-              // ============================================================
-              Form(
-                // key = Use this to validate the entire form
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    
-                    // ========================================================
-                    // FIELD 1 - Account Holder Name
-                    // ========================================================
-                    _buildLabel('Account Holder Name'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      // TextFormField = Input field for text
-                      controller: _nameController,
-                      // controller connects this field to _nameController
-                      // So whatever user types gets stored in _nameController
-                      decoration: _buildInputDecoration().copyWith(hintText: 'Account holder name'),
-                      // Use the styling from _buildInputDecoration() method
-                      style: _inputTextStyle,
-                      // Text color is black
-                      
-                      // VALIDATOR - Check if this field is valid
-                      validator: (value) {
-                        // value = what the user typed
-                        if (value?.isEmpty ?? true) {
-                          // If the field is empty, show error message
-                          return 'Please enter account holder name';
-                        }
-                        // If not empty, return null (no error)
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ========================================================
-                    // FIELD 2 - Bank Name
-                    // ========================================================
-                    _buildLabel('Bank Name'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _bankController,
-                      decoration: _buildInputDecoration().copyWith(hintText: 'Bank name'),
-                      style: _inputTextStyle,
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Please select a bank';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ========================================================
-                    // FIELD 3 - Account Number
-                    // ========================================================
-                    _buildLabel('Account Number'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _accountController,
-                      decoration: _buildInputDecoration().copyWith(hintText: 'Account number'),
-                      style: _inputTextStyle,
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Please enter account number';
-                        }
-                        // Also check if the account number is long enough
-                        if (value!.length < 10) {
-                          return 'Account number must be at least 10 digits';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ========================================================
-                    // FIELD 4 - Withdrawal Amount
-                    // ========================================================
-                    const Text(
-                      'Withdrawal Amount',
-                      style: TextStyle(
-                          color: Color.fromARGB(255, 21, 36, 69), // First palette color
-                        fontSize: 16, // 2 sizes larger than default 14
-                        fontWeight: FontWeight.w900, // Bolder
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _withdrawalController,
-                      decoration: _buildInputDecoration().copyWith(
-                        // use prefixIcon so the RM label remains visible at all times
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.only(left: 20.0, right: 8.0),
-                          child: Text('RM', style: _inputTextStyle),
-                        ),
-                        // reduce default left padding introduced by prefixIcon
-                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                      ),
-                      style: _inputTextStyle,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Please enter withdrawal amount';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ========================================================
-                    // DISCLAIMER SECTION
-                    // ========================================================
-                    _buildDisclaimerSection(),
-                  ],
+  Widget _buildBankDetailsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F1E3C).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.account_balance, color: Color(0xFF0F1E3C), size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Bank Details',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F1E3C),
+                  ),
                 ),
               ),
-              const SizedBox(height: 32),
-
-              // ============================================================
-              // SUBMIT BUTTON
-              // ============================================================
-              SizedBox(
-                // SizedBox = A box with a specific size
-                width: double.infinity, // Take full width
-                height: 50, // Height of 50 pixels
-                child: ElevatedButton(
-                  // ElevatedButton = A button with elevation (3D effect)
-                  onPressed: _submitWithdrawal,
-                  // When clicked, run the _submitWithdrawal function
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 39, 39, 215), // Purple color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              if (!_hasBankDetails)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    'Submit Withdrawal',
+                  child: Text(
+                    'Not Set',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                      color: Colors.orange.shade700,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock, size: 14, color: Colors.green.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        'From Profile',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
             ],
           ),
-        ),
+          
+          if (!_hasBankDetails) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Please add your bank details in Edit Profile to withdraw earnings.',
+                      style: TextStyle(color: Colors.orange.shade800, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            _buildReadOnlyField(
+              label: 'Account Holder Name',
+              value: _nameController.text,
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 14),
+            _buildReadOnlyField(
+              label: 'Bank Name',
+              value: _bankController.text,
+              icon: Icons.business_outlined,
+            ),
+            const SizedBox(height: 14),
+            _buildReadOnlyField(
+              label: 'Account Number',
+              value: _accountController.text,
+              icon: Icons.credit_card_outlined,
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  // ========================================================================
-  // HELPER METHOD 1 - Build a label (like "Account Holder Name")
-  // This method is reused multiple times to avoid repeating code
-  // ========================================================================
-  Widget _buildLabel(String label) {
-    // label = the text to display (passed in as parameter)
-    return Text(
-      label,
-      style: const TextStyle(
-        color: Color.fromARGB(255, 53, 53, 53),
-        fontSize: 14,
-        fontWeight: FontWeight.w900,
+  Widget _buildReadOnlyField({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
       ),
-    );
-  }
-
-  // ========================================================================
-  // HELPER METHOD 2 - Build the styling for all input fields
-  // This makes all text fields look the same
-  // ========================================================================
-  InputDecoration _buildInputDecoration() {
-    return InputDecoration(
-      filled: true, // Fill the field with a background color
-      // Slight light fill so fields read as inputs but not fully white
-      // Darker tinted field background to stand out against the page
-      fillColor: const Color.fromARGB(255, 141, 143, 145).withValues(alpha: 0.18),
-      
-      // Border when the field is enabled (ready to type)
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: 0.92),
-          width: 1.4,
-        ),
-      ),
-      
-      // Border when the field is focused (user is typing)
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: const Color.fromARGB(255, 107, 106, 106).withValues(alpha: 0.6), // Bright light border when focused
-          width: 2.4,
-        ),
-      ),
-      
-      // Border when there's an error
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.8,
-        ),
-      ),
-      
-      // Space inside the field (padding) - increase vertical for easier tapping
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      
-      // Style for placeholder text (darker for better readability)
-      hintStyle: const TextStyle(color: Color(0xFF333333)),
-    );
-  }
-
-  // ========================================================================
-  // HELPER METHOD 3 - Build the disclaimer section
-  // This shows all the disclaimer text with bullet points
-  // ========================================================================
-  Widget _buildDisclaimerSection() {
-    return Column(
-      // Stack items vertically
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Disclaimer title
-        const Text(
-          'Disclaimer:',
-          style: TextStyle(
-            color: Color.fromARGB(255, 21, 36, 69),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF6C757D), size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF6C757D),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value.isNotEmpty ? value : '-',
+                  style: const TextStyle(
+                    color: Color(0xFF212529),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        
-        // Disclaimer point 1
-        _buildDisclaimerPoint(
-          'Please ensure that all information provided is accurate.',
-        ),
-        const SizedBox(height: 3),
-        
-        // Disclaimer point 2
-        _buildDisclaimerPoint(
-          'Please ensure that the bank account holder\'s name provided is registered as per the NRIC name.',
-        ),
-        const SizedBox(height: 3),
-        
-        // Disclaimer point 3
-        _buildDisclaimerPoint(
-          'The earnings withdrawal request will be processed according to the information provided here.',
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ========================================================================
-  // HELPER METHOD 4 - Build each disclaimer point with a bullet
-  // ========================================================================
+  Widget _buildWithdrawalSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F1E3C).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.payments_outlined, color: Color(0xFF0F1E3C), size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Withdrawal Amount',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F1E3C),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _withdrawalController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F1E3C),
+              ),
+              decoration: InputDecoration(
+                prefixIcon: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: const Text(
+                    'RM',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F1E3C),
+                    ),
+                  ),
+                ),
+                prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                hintText: '0.00',
+                hintStyle: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF8F9FA),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE9ECEF), width: 1.5),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFF0F1E3C), width: 2),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              ),
+              validator: (value) {
+                if (value?.isEmpty ?? true) {
+                  return 'Please enter withdrawal amount';
+                }
+                final amount = double.tryParse(value!) ?? 0;
+                if (amount <= 0) {
+                  return 'Amount must be greater than 0';
+                }
+                if (amount > _availableBalance) {
+                  return 'Exceeds available balance';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Maximum: RM ${_availableBalance.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDisclaimerCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.amber.shade800, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Important Notes',
+                style: TextStyle(
+                  color: Colors.amber.shade900,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildDisclaimerPoint('Ensure all information in your profile is accurate.'),
+          const SizedBox(height: 8),
+          _buildDisclaimerPoint('Bank account holder name must match your NRIC name.'),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDisclaimerPoint(String text) {
-    // text = the disclaimer text (passed in as parameter)
     return Row(
-      // Row = Arrange items horizontally (left to right)
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The bullet point (a small circle)
-        const Padding(
-          padding: EdgeInsets.only(right: 12, top: 4),
-          child: Icon(
-            Icons.circle,
-            size: 6, // Very small circle
-            color: Color.fromARGB(255, 21, 36, 69),
+        Container(
+          margin: const EdgeInsets.only(top: 6),
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: Colors.amber.shade800,
+            shape: BoxShape.circle,
           ),
         ),
-        // The disclaimer text
+        const SizedBox(width: 12),
         Expanded(
-          // Expanded = Take up remaining space
           child: Text(
             text,
             style: TextStyle(
-              color: Color.fromARGB(255, 21, 36, 69),
-              fontSize: 14,
-              height: 1.5, // Line height for better readability
+              color: Colors.amber.shade900,
+              fontSize: 13,
+              height: 1.5,
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    final isEnabled = _hasBankDetails;
+    
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: isEnabled
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF0F1E3C).withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
+      ),
+      child: ElevatedButton(
+        onPressed: isEnabled ? _submitWithdrawal : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0F1E3C),
+          disabledBackgroundColor: Colors.grey.shade300,
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.grey.shade500,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.send_rounded, size: 22),
+            SizedBox(width: 10),
+            Text(
+              'Submit Withdrawal',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

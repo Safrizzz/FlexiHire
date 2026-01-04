@@ -7,6 +7,7 @@ import '../models/user_role.dart';
 import '../services/firestore_service.dart';
 import '../services/location_service.dart';
 import '../authentication_profile/auth_account_page.dart';
+import '../components/student_micro_shift_selector.dart';
 
 class StudentJobDetailsPage extends StatefulWidget {
   final Job job;
@@ -89,12 +90,25 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
       }
     }
 
+    // Show micro-shift selector if the job has micro-shifts
+    List<DateTime>? selectedDates;
+    if (widget.job.microShifts.isNotEmpty) {
+      selectedDates = await StudentMicroShiftSelector.show(context, widget.job);
+      if (selectedDates == null || selectedDates.isEmpty) {
+        // User cancelled or didn't select any dates
+        return;
+      }
+    }
+
     setState(() {
       _isApplying = true;
     });
 
     try {
-      final result = await _service.applyToJob(widget.job);
+      final result = await _service.applyToJob(
+        widget.job,
+        selectedDates: selectedDates,
+      );
       if (!mounted) return;
 
       setState(() {
@@ -104,7 +118,9 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
       if (result == 'applied') {
         _showSuccessDialog(
           'Application Submitted!',
-          'Your application has been sent to the employer. You can track your application status in "My Jobs".',
+          selectedDates != null && selectedDates.isNotEmpty
+              ? 'Your application for ${selectedDates.length} ${selectedDates.length == 1 ? 'date' : 'dates'} has been sent to the employer. Track your status in "My Jobs".'
+              : 'Your application has been sent to the employer. You can track your application status in "My Jobs".',
         );
       } else if (result == 'reapplied') {
         _showSuccessDialog(
@@ -239,24 +255,6 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime d) {
-    final months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
   String _formatShortDate(DateTime d) {
@@ -477,8 +475,93 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
               '${widget.job.startTime} - ${widget.job.endTime}',
             ),
           ],
+          // Micro-Shifts Available
+          if (widget.job.microShifts.isNotEmpty) ...[
+            const Divider(height: 24),
+            _buildMicroShiftsPreview(),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildMicroShiftsPreview() {
+    final shifts = widget.job.microShifts;
+    final sortedDates = shifts.map((s) => s.date).toSet().toList()..sort();
+    final workingHours = shifts.isNotEmpty ? shifts.first.toShortDisplay() : '';
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.calendar_month, size: 20, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Available Micro-Shifts',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${sortedDates.length} ${sortedDates.length == 1 ? 'date' : 'dates'} • $workingHours',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF1A1A1A),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6366F1).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: const Color(0xFF6366F1),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tap "Apply Now" to select specific dates you want to work',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: const Color(0xFF4338CA),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

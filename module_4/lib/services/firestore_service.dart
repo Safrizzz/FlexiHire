@@ -33,13 +33,14 @@ class FirestoreService {
   }
 
   Stream<List<Job>> streamJobs({
-    String? location,
     num? minPay,
     num? maxPay,
     DateTime? startDate,
     DateTime? endDate,
   }) {
-    Query<Map<String, dynamic>> q = _db.collection('jobs').orderBy('createdAt', descending: true);
+    Query<Map<String, dynamic>> q = _db
+        .collection('jobs')
+        .orderBy('createdAt', descending: true);
     return q.snapshots().map((s) {
       final jobs = s.docs.map((d) => Job.fromMap(d.id, d.data())).toList();
       return jobs.where((job) {
@@ -48,11 +49,6 @@ class FirestoreService {
         if (job.status != 'open') {
           return false;
         }
-        if (location != null && location.isNotEmpty) {
-          final qLoc = location.toLowerCase().trim();
-          final jLoc = job.location.toLowerCase().trim();
-          ok = ok && jLoc.contains(qLoc);
-        }
         if (minPay != null) {
           ok = ok && job.pay >= minPay;
         }
@@ -60,7 +56,11 @@ class FirestoreService {
           ok = ok && job.pay <= maxPay;
         }
         if (startDate != null) {
-          ok = ok && job.startDate.isAfter(startDate.subtract(const Duration(days: 1)));
+          ok =
+              ok &&
+              job.startDate.isAfter(
+                startDate.subtract(const Duration(days: 1)),
+              );
         }
         if (endDate != null) {
           ok = ok && job.endDate.isBefore(endDate.add(const Duration(days: 1)));
@@ -70,7 +70,7 @@ class FirestoreService {
     });
   }
 
-  Future<String> applyToJob(Job job) async {
+  Future<String> applyToJob(Job job, {List<DateTime>? selectedDates}) async {
     final doc = await _db
         .collection('applications')
         .where('jobId', isEqualTo: job.id)
@@ -83,6 +83,8 @@ class FirestoreService {
         'applicantId': uid,
         'status': 'applied',
         'createdAt': DateTime.now().toIso8601String(),
+        'selectedDates':
+            selectedDates?.map((d) => d.toIso8601String()).toList() ?? [],
       });
       return 'applied';
     }
@@ -93,6 +95,8 @@ class FirestoreService {
       await existing.reference.update({
         'status': 'applied',
         'createdAt': DateTime.now().toIso8601String(),
+        'selectedDates':
+            selectedDates?.map((d) => d.toIso8601String()).toList() ?? [],
       });
       return 'reapplied';
     }
@@ -100,7 +104,9 @@ class FirestoreService {
   }
 
   Future<void> withdrawApplication(String applicationId) async {
-    await _db.collection('applications').doc(applicationId).update({'status': 'withdrawn'});
+    await _db.collection('applications').doc(applicationId).update({
+      'status': 'withdrawn',
+    });
   }
 
   Stream<List<Application>> streamMyApplications() {
@@ -109,13 +115,18 @@ class FirestoreService {
         .where('applicantId', isEqualTo: uid)
         .snapshots()
         .map((s) {
-          final list = s.docs.map((d) => Application.fromMap(d.id, d.data())).toList();
+          final list = s.docs
+              .map((d) => Application.fromMap(d.id, d.data()))
+              .toList();
           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return list;
         });
   }
 
-  Future<String> createOrOpenChat({required String employerId, required String jobId}) async {
+  Future<String> createOrOpenChat({
+    required String employerId,
+    required String jobId,
+  }) async {
     final participants = [uid, employerId]..sort();
     final existing = await _db
         .collection('chats')
@@ -159,7 +170,9 @@ class FirestoreService {
         .collection('messages')
         .orderBy('sentAt', descending: false)
         .snapshots()
-        .map((s) => s.docs.map((d) => Message.fromMap(d.id, d.data())).toList());
+        .map(
+          (s) => s.docs.map((d) => Message.fromMap(d.id, d.data())).toList(),
+        );
   }
 
   Stream<Message?> streamLastMessage(String chatId) {
@@ -170,7 +183,18 @@ class FirestoreService {
         .orderBy('sentAt', descending: true)
         .limit(1)
         .snapshots()
-        .map((s) => s.docs.isEmpty ? null : Message.fromMap(s.docs.first.id, s.docs.first.data()));
+        .map(
+          (s) => s.docs.isEmpty
+              ? null
+              : Message.fromMap(s.docs.first.id, s.docs.first.data()),
+        );
+  }
+
+  Stream<Chat?> streamChat(String chatId) {
+    return _db.collection('chats').doc(chatId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return Chat.fromMap(doc.id, doc.data()!);
+    });
   }
 
   Future<void> sendMessage(String chatId, String text) async {
@@ -195,17 +219,27 @@ class FirestoreService {
   }
 
   Future<void> updateUserProfile(UserProfile profile) async {
-    await _db.collection('users').doc(profile.id).set(profile.toMap(), SetOptions(merge: true));
+    await _db
+        .collection('users')
+        .doc(profile.id)
+        .set(profile.toMap(), SetOptions(merge: true));
   }
 
   Future<UserProfile?> getUserByEmail(String email) async {
-    final qs = await _db.collection('users').where('email', isEqualTo: email).limit(1).get();
+    final qs = await _db
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
     if (qs.docs.isEmpty) return null;
     final d = qs.docs.first;
     return UserProfile.fromMap(d.id, d.data());
   }
 
-  Future<List<UserProfile>> searchUsersByNamePrefix(String query, {int limit = 20}) async {
+  Future<List<UserProfile>> searchUsersByNamePrefix(
+    String query, {
+    int limit = 20,
+  }) async {
     if (query.trim().isEmpty) return [];
     final start = query.trim();
     final end = '$start\uf8ff';
@@ -220,7 +254,10 @@ class FirestoreService {
   }
 
   Future<double> getBalance(String userId) async {
-    final qs = await _db.collection('transactions').where('userId', isEqualTo: userId).get();
+    final qs = await _db
+        .collection('transactions')
+        .where('userId', isEqualTo: userId)
+        .get();
     double sum = 0;
     for (final d in qs.docs) {
       final v = d.data()['amount'];
@@ -241,10 +278,12 @@ class FirestoreService {
             int toTime(Map<String, dynamic> m) {
               final v = m['createdAt'];
               if (v is Timestamp) return v.millisecondsSinceEpoch;
-              if (v is String) return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
+              if (v is String)
+                return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
               if (v is DateTime) return v.millisecondsSinceEpoch;
               return 0;
             }
+
             return toTime(b).compareTo(toTime(a));
           });
           return list;
@@ -258,7 +297,11 @@ class FirestoreService {
   }) async {
     String? toUid;
     if (toIdentifier.contains('@')) {
-      final qs = await _db.collection('users').where('email', isEqualTo: toIdentifier).limit(1).get();
+      final qs = await _db
+          .collection('users')
+          .where('email', isEqualTo: toIdentifier)
+          .limit(1)
+          .get();
       if (qs.docs.isNotEmpty) {
         toUid = qs.docs.first.id;
       }
@@ -331,7 +374,10 @@ class FirestoreService {
   }
 
   Future<void> updateJob(Job job) async {
-    await _db.collection('jobs').doc(job.id).set(job.toMap(), SetOptions(merge: true));
+    await _db
+        .collection('jobs')
+        .doc(job.id)
+        .set(job.toMap(), SetOptions(merge: true));
   }
 
   Future<void> deleteJob(String jobId) async {
@@ -359,11 +405,19 @@ class FirestoreService {
         .collection('applications')
         .where('jobId', isEqualTo: jobId)
         .snapshots()
-        .map((s) => s.docs.map((d) => Application.fromMap(d.id, d.data())).toList());
+        .map(
+          (s) =>
+              s.docs.map((d) => Application.fromMap(d.id, d.data())).toList(),
+        );
   }
 
-  Future<void> updateApplicationStatus(String applicationId, String status) async {
-    await _db.collection('applications').doc(applicationId).update({'status': status});
+  Future<void> updateApplicationStatus(
+    String applicationId,
+    String status,
+  ) async {
+    await _db.collection('applications').doc(applicationId).update({
+      'status': status,
+    });
   }
 
   /// Delete an application completely so the student can re-apply
@@ -381,7 +435,8 @@ class FirestoreService {
     required double attitude,
     String? comment,
   }) async {
-    final average = (punctuality + efficiency + communication + teamwork + attitude) / 5.0;
+    final average =
+        (punctuality + efficiency + communication + teamwork + attitude) / 5.0;
     await _db.collection('ratings').add({
       'employeeId': employeeId,
       'employerId': uid,
@@ -408,10 +463,12 @@ class FirestoreService {
             int toTime(Map<String, dynamic> m) {
               final v = m['createdAt'];
               if (v is Timestamp) return v.millisecondsSinceEpoch;
-              if (v is String) return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
+              if (v is String)
+                return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
               if (v is DateTime) return v.millisecondsSinceEpoch;
               return 0;
             }
+
             return toTime(b).compareTo(toTime(a));
           });
           return list;
@@ -419,7 +476,10 @@ class FirestoreService {
   }
 
   Future<double> getEmployeeAverageRating(String employeeId) async {
-    final qs = await _db.collection('ratings').where('employeeId', isEqualTo: employeeId).get();
+    final qs = await _db
+        .collection('ratings')
+        .where('employeeId', isEqualTo: employeeId)
+        .get();
     if (qs.docs.isEmpty) return 0;
     double sum = 0;
     for (final d in qs.docs) {
@@ -464,7 +524,10 @@ class FirestoreService {
   }
 
   Future<double> getEmployerAverageRating(String employerId) async {
-    final qs = await _db.collection('employer_ratings').where('employerId', isEqualTo: employerId).get();
+    final qs = await _db
+        .collection('employer_ratings')
+        .where('employerId', isEqualTo: employerId)
+        .get();
     if (qs.docs.isEmpty) return 0;
     double sum = 0;
     for (final d in qs.docs) {

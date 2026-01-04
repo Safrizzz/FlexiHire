@@ -29,12 +29,8 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
+      // Auth state change will automatically redirect to main app
       if (!mounted) return;
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      } else {
-        Navigator.pushReplacementNamed(context, '/profile');
-      }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
