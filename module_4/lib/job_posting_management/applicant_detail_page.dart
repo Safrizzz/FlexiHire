@@ -203,7 +203,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -558,7 +558,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         icon: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
@@ -571,7 +571,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -700,15 +700,15 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF10B981).withOpacity(0.1),
-            const Color(0xFF059669).withOpacity(0.05),
+            const Color(0xFF10B981).withValues(alpha: 0.1),
+            const Color(0xFF059669).withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withOpacity(0.1),
+            color: const Color(0xFF10B981).withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -728,7 +728,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.4),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.4),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -781,7 +781,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.15),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -793,7 +793,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withOpacity(0.15),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -871,12 +871,12 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.15),
+            color: statusColor.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -901,7 +901,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: statusColor.withOpacity(0.2),
+                        color: statusColor.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -918,7 +918,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                         'Application Status',
                         style: TextStyle(
                           fontSize: 12,
-                          color: statusColor.withOpacity(0.8),
+                          color: statusColor.withValues(alpha: 0.8),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -976,7 +976,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F1E3C).withOpacity(0.08),
+            color: const Color(0xFF0F1E3C).withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -993,7 +993,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F1E3C).withOpacity(0.08),
+                    color: const Color(0xFF0F1E3C).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -1023,7 +1023,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF0F1E3C).withOpacity(0.2),
+                        color: const Color(0xFF0F1E3C).withValues(alpha: 0.2),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -1107,16 +1107,16 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -1208,7 +1208,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -1219,7 +1219,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: color, size: 22),
@@ -1249,7 +1249,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -1322,13 +1322,13 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF9333EA).withOpacity(0.08),
-                          const Color(0xFF3B82F6).withOpacity(0.08),
+                          const Color(0xFF9333EA).withValues(alpha: 0.08),
+                          const Color(0xFF3B82F6).withValues(alpha: 0.08),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(25),
                       border: Border.all(
-                        color: const Color(0xFF9333EA).withOpacity(0.2),
+                        color: const Color(0xFF9333EA).withValues(alpha: 0.2),
                       ),
                     ),
                     child: Text(
@@ -1356,7 +1356,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -1405,7 +1405,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
                       end: Alignment.bottomRight,
                       colors: [
                         const Color(0xFFFEF3C7),
-                        const Color(0xFFFDE68A).withOpacity(0.5),
+                        const Color(0xFFFDE68A).withValues(alpha: 0.5),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(16),
@@ -1464,7 +1464,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -1548,7 +1548,7 @@ class _ApplicantDetailPageState extends State<ApplicantDetailPage> {
             ? []
             : [
                 BoxShadow(
-                  color: color.withOpacity(0.35),
+                  color: color.withValues(alpha: 0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

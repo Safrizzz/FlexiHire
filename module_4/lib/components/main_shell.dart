@@ -105,20 +105,20 @@ class MainShellState extends State<MainShell> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFF0F1E3C).withOpacity(0.95),
-                const Color(0xFF1A2D5A).withOpacity(0.98),
+                const Color(0xFF0F1E3C).withValues(alpha: 0.95),
+                const Color(0xFF1A2D5A).withValues(alpha: 0.98),
               ],
             ),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(radius)),
             border: Border(
               top: BorderSide(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 width: 1,
               ),
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F1E3C).withOpacity(0.5),
+                color: const Color(0xFF0F1E3C).withValues(alpha: 0.5),
                 blurRadius: 20,
                 offset: const Offset(0, -5),
               ),
@@ -157,11 +157,11 @@ class MainShellState extends State<MainShell> {
         ),
         decoration: BoxDecoration(
           color: isSelected 
-            ? Colors.white.withOpacity(0.15)
+            ? Colors.white.withValues(alpha: 0.15)
             : Colors.transparent,
           borderRadius: BorderRadius.circular(15),
           border: isSelected 
-            ? Border.all(color: Colors.white.withOpacity(0.2))
+            ? Border.all(color: Colors.white.withValues(alpha: 0.2))
             : null,
         ),
         child: Column(
@@ -172,7 +172,7 @@ class MainShellState extends State<MainShell> {
               size: isSelected ? 22 : 20,
               color: isSelected 
                 ? Colors.white 
-                : Colors.white.withOpacity(0.5),
+                : Colors.white.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 3),
             Text(
@@ -182,7 +182,7 @@ class MainShellState extends State<MainShell> {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected 
                   ? Colors.white 
-                  : Colors.white.withOpacity(0.5),
+                  : Colors.white.withValues(alpha: 0.5),
               ),
             ),
           ],

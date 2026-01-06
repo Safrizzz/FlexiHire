@@ -12,6 +12,7 @@ class Job {
   final String description;
   final List<MicroShift> microShifts;
   final String status;
+  final List<String> skillsRequired; // Required skills for the job
 
   List<JobApplication> applicants;
   List<JobApplication> hires;
@@ -26,6 +27,7 @@ class Job {
     required this.description,
     this.microShifts = const [],
     this.status = 'open',
+    this.skillsRequired = const [],
     List<JobApplication>? applicants,
     List<JobApplication>? hires,
   })  : applicants = applicants ?? [],

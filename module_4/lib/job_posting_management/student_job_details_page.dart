@@ -90,6 +90,8 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
       }
     }
 
+    if (!mounted) return;
+
     // Show micro-shift selector if the job has micro-shifts
     List<DateTime>? selectedDates;
     if (widget.job.microShifts.isNotEmpty) {
@@ -290,7 +292,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -325,8 +327,8 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
                           ),
                           decoration: BoxDecoration(
                             color: widget.job.status == 'open'
-                                ? Colors.green.withOpacity(0.2)
-                                : Colors.grey.withOpacity(0.2),
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : Colors.grey.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -411,7 +413,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -536,9 +538,9 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
@@ -616,7 +618,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 20, color: color),
@@ -659,7 +661,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -684,7 +686,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F1E3C).withOpacity(0.1),
+                  color: const Color(0xFF0F1E3C).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _employerProfile?.photoUrl.isNotEmpty == true
@@ -693,7 +695,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
                         child: Image.network(
                           _employerProfile!.photoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          errorBuilder: (context, error, stackTrace) => const Icon(
                             Icons.business,
                             color: Color(0xFF0F1E3C),
                             size: 28,
@@ -787,7 +789,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -801,7 +803,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F1E3C).withOpacity(0.1),
+                  color: const Color(0xFF0F1E3C).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -848,7 +850,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -922,7 +924,7 @@ class _StudentJobDetailsPageState extends State<StudentJobDetailsPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),

@@ -9,7 +9,18 @@ class EmployerTransferPage extends StatefulWidget {
   final String? employeeEmail;
   final String? employeeName;
   final String? employeeId;
-  const EmployerTransferPage({super.key, this.employeeEmail, this.employeeName, this.employeeId});
+  final double? transferAmount;
+  final String? applicationId; // For updating application status after payment
+  final String? jobId;
+  const EmployerTransferPage({
+    super.key,
+    this.employeeEmail,
+    this.employeeName,
+    this.employeeId,
+    this.transferAmount,
+    this.applicationId,
+    this.jobId,
+  });
 
   @override
   State<EmployerTransferPage> createState() => _EmployerTransferPageState();
@@ -19,23 +30,22 @@ class EmployerTransferPage extends StatefulWidget {
 // THIS IS THE PAGE STATE - Where all the code and UI happens
 // ============================================================================
 class _EmployerTransferPageState extends State<EmployerTransferPage> {
-  
   // ========================================================================
   // FORM KEY - This is like a remote control for the entire form
   // We use it to validate all fields when user clicks submit
   // ========================================================================
   final _formKey = GlobalKey<FormState>();
-  
+
   // ========================================================================
   // TEXT CONTROLLERS - These catch and store whatever the user types
   // Think of them like mailboxes that hold the user's input
   // ========================================================================
   final _employeeNameController = TextEditingController();
   // Stores the employee name the user types
-  
+
   final _employeeEmailController = TextEditingController();
   // Stores the employee email the user types
-  
+
   final _employeeIDController = TextEditingController();
   // Stores the employee ID the user types
 
@@ -44,13 +54,13 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
 
   final _employeeBankController = TextEditingController();
   // Stores the employee bank name the user types
-  
+
   final _transferAmountController = TextEditingController(text: '0.00');
   // Stores the transfer amount the user types
-  
+
   final _descriptionController = TextEditingController();
   // Stores the transfer description/reason
-  
+
   // Shared input text style so all fields match
   final TextStyle _inputTextStyle = const TextStyle(
     color: Color.fromARGB(255, 12, 12, 12),
@@ -84,9 +94,41 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.employeeEmail != null) _employeeEmailController.text = widget.employeeEmail!;
-    if (widget.employeeName != null) _employeeNameController.text = widget.employeeName!;
-    if (widget.employeeId != null) _employeeIDController.text = widget.employeeId!;
+    if (widget.employeeEmail != null) {
+      _employeeEmailController.text = widget.employeeEmail!;
+    }
+    if (widget.employeeName != null) {
+      _employeeNameController.text = widget.employeeName!;
+    }
+    if (widget.employeeId != null) {
+      _employeeIDController.text = widget.employeeId!;
+      // Auto-fetch bank details when employee ID is provided
+      _fetchEmployeeDetails();
+    }
+    if (widget.transferAmount != null) {
+      _transferAmountController.text = widget.transferAmount!.toStringAsFixed(
+        2,
+      );
+    }
+    if (widget.jobId != null) {
+      _descriptionController.text = 'Job completion payment';
+    }
+  }
+
+  Future<void> _fetchEmployeeDetails() async {
+    if (widget.employeeId == null) return;
+    final profile = await FirestoreService().getUserProfile(widget.employeeId!);
+    if (!mounted || profile == null) return;
+    setState(() {
+      if (_employeeNameController.text.isEmpty) {
+        _employeeNameController.text = profile.displayName;
+      }
+      if (_employeeEmailController.text.isEmpty) {
+        _employeeEmailController.text = profile.email;
+      }
+      _employeeAccountController.text = profile.bankAccountNumber;
+      _employeeBankController.text = profile.bankName;
+    });
   }
 
   // ========================================================================
@@ -94,21 +136,29 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
   // ========================================================================
   Future<void> _submitTransfer() async {
     if (!_formKey.currentState!.validate()) return;
-    final toIdRaw = _employeeEmailController.text.isNotEmpty ? _employeeEmailController.text : _employeeIDController.text;
+    final toIdRaw = _employeeEmailController.text.isNotEmpty
+        ? _employeeEmailController.text
+        : _employeeIDController.text;
     if (toIdRaw.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please provide employee email or ID')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please provide employee email or ID')),
+      );
       return;
     }
     final amount = double.tryParse(_transferAmountController.text) ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amount must be greater than 0')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Amount must be greater than 0')),
+      );
       return;
     }
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final bal = uid.isEmpty ? 0 : await FirestoreService().getBalance(uid);
     if (!mounted) return;
     if (amount > bal) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance for this transfer')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Insufficient balance for this transfer')),
+      );
       return;
     }
     await FirestoreService().recordTransfer(
@@ -116,9 +166,31 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
       amount: amount,
       description: _descriptionController.text,
     );
+
+    // Update application status to 'paid' if this is a job payment
+    if (widget.applicationId != null) {
+      await FirestoreService().updateApplicationStatus(
+        widget.applicationId!,
+        'paid',
+      );
+    }
+
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transfer submitted success')));
-    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Text('RM ${amount.toStringAsFixed(2)} paid successfully!'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    Navigator.pop(context, true); // Return true to indicate successful payment
   }
 
   // ========================================================================
@@ -133,21 +205,20 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
     return Scaffold(
       // Set the background color to light gray/white
       backgroundColor: const Color.fromARGB(255, 250, 250, 251),
-      
+
       // ===================================================================
       // APP BAR - The top header of the page
       // ===================================================================
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F1E3C),
         elevation: 0, // No shadow under the app bar
-        
         // LEFT SIDE - Back arrow button
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           // When clicked, go back to the previous page
           onPressed: () => Navigator.pop(context),
         ),
-        
+
         // MIDDLE - Title text
         title: const Text(
           'Transfer to Employee',
@@ -157,7 +228,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        
+
         // RIGHT SIDE - Info button
         actions: [
           IconButton(
@@ -184,7 +255,7 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
           ),
         ],
       ),
-      
+
       // ===================================================================
       // BODY - Main content area of the page
       // ===================================================================
@@ -192,174 +263,416 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
         // SingleChildScrollView = Makes the page scrollable if content is too long
         child: Padding(
           // Padding = Add space around everything (16 pixels)
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             // Column = Stack everything vertically (top to bottom)
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              
               // ============================================================
               // ACCOUNT BALANCE CARD - Shows employer's available balance
               // ============================================================
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20), // Space inside the box
-                // The styling of the box
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A2F5C), // Darker blue color
-                  borderRadius: BorderRadius.circular(12), // Rounded corners
-                  border: Border.all(
-                    color: const Color(0xFF1A2F5C), // Border color
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0F1E3C), Color(0xFF1A3A5C)],
                   ),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4), // Shadow with 40% opacity
+                      color: const Color(0xFF0F1E3C).withValues(alpha: 0.4),
                       spreadRadius: 0,
-                      blurRadius: 16,
-                      offset: const Offset(0, 8), // Slightly lower offset
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF0F1E3C).withValues(alpha: 0.2),
+                      spreadRadius: 0,
+                      blurRadius: 40,
+                      offset: const Offset(0, 20),
                     ),
                   ],
                 ),
                 child: Column(
-                  // Stack items vertically inside the box
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Label text
-                    const Text(
-                      'Account Balance',
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 255, 255, 255),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w400,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Account Balance',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8), // Add 8 pixels of space
-                    
+                    const SizedBox(height: 16),
                     FutureBuilder<double>(
-                      future: FirestoreService().getBalance(FirebaseAuth.instance.currentUser?.uid ?? ''),
+                      future: FirestoreService().getBalance(
+                        FirebaseAuth.instance.currentUser?.uid ?? '',
+                      ),
                       builder: (context, snapshot) {
                         final bal = snapshot.data ?? accountBalance;
                         return Text(
                           'RM ${bal.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 32,
+                            fontSize: 36,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
                           ),
                         );
                       },
                     ),
                   ],
                 ),
-          ),
-          const SizedBox(height: 24), // Add space after the card
-          
-          // ============================================================
-          // FORM - Container for all the input fields
-          // ============================================================
-          Form(
-            // key = Use this to validate the entire form
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _employeeEmailController,
-                        decoration: _buildInputDecoration(hintText: 'Employee email (preferred)'),
-                        style: _inputTextStyle,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if ((value?.isEmpty ?? true) && (_employeeIDController.text.isEmpty)) {
-                            return 'Enter email or ID';
-                          }
-                          return null;
-                        },
-                      ),
+              ),
+              const SizedBox(height: 28),
+
+              // ============================================================
+              // SEARCH EMPLOYEE CARD
+              // ============================================================
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        final email = _employeeEmailController.text.trim();
-                        if (email.isEmpty) return;
-                        final profile = await FirestoreService().getUserByEmail(email);
-                        if (!mounted) return;
-                        final found = profile != null;
-                        if (found) {
-                          setState(() {
-                            _employeeNameController.text = profile.displayName;
-                            _employeeIDController.text = profile.id;
-                            _employeeAccountController.text = profile.bankAccountNumber;
-                            _employeeBankController.text = profile.bankName;
-                          });
-                        }
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(found ? 'Employee found' : 'No user with that email')),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F1E3C)),
-                      child: const Text('Find', style: TextStyle(color: Colors.white)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                    
-                    // ========================================================
-                    // FIELD 1 - Employee Name
-                    // ========================================================
-                    _buildLabel('Employee Name'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF0F1E3C,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.search,
+                            color: Color(0xFF0F1E3C),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Find Employee',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F1E3C),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _employeeEmailController,
+                                  decoration: _buildModernInputDecoration(
+                                    hintText: 'Enter employee email',
+                                    prefixIcon: Icons.email_outlined,
+                                  ),
+                                  style: _inputTextStyle,
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (value) {
+                                    if ((value?.isEmpty ?? true) &&
+                                        (_employeeIDController.text.isEmpty)) {
+                                      return 'Enter email or ID';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF0F1E3C),
+                                      Color(0xFF1A3A5C),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF0F1E3C,
+                                      ).withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () async {
+                                      final messenger = ScaffoldMessenger.of(
+                                        context,
+                                      );
+                                      final email = _employeeEmailController
+                                          .text
+                                          .trim();
+                                      if (email.isEmpty) return;
+                                      final profile = await FirestoreService()
+                                          .getUserByEmail(email);
+                                      if (!mounted) return;
+                                      final found = profile != null;
+                                      if (found) {
+                                        setState(() {
+                                          _employeeNameController.text =
+                                              profile.displayName;
+                                          _employeeIDController.text =
+                                              profile.id;
+                                          _employeeAccountController.text =
+                                              profile.bankAccountNumber;
+                                          _employeeBankController.text =
+                                              profile.bankName;
+                                        });
+                                      }
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            found
+                                                ? 'Employee found!'
+                                                : 'No user with that email',
+                                          ),
+                                          backgroundColor: found
+                                              ? Colors.green
+                                              : Colors.red,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 16,
+                                      ),
+                                      child: Text(
+                                        'Find',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ============================================================
+              // EMPLOYEE DETAILS CARD
+              // ============================================================
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.person_outline,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Employee Details',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F1E3C),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Employee Name
+                    _buildModernLabel('Employee Name'),
                     const SizedBox(height: 8),
                     TextFormField(
-                      // TextFormField = Input field for text
                       controller: _employeeNameController,
-                      // controller connects this field to _employeeNameController
-                      // So whatever user types gets stored in _employeeNameController
-                      decoration: _buildInputDecoration(hintText: 'Enter employee full name'),
-                      // Use the styling from _buildInputDecoration() method
+                      decoration: _buildModernInputDecoration(
+                        hintText: 'Enter employee full name',
+                        prefixIcon: Icons.badge_outlined,
+                      ),
                       style: _inputTextStyle,
-                      
-                      // VALIDATOR - Check if this field is valid
                       validator: (value) {
-                        // value = what the user typed
                         if (value?.isEmpty ?? true) {
-                          // If the field is empty, show error message
                           return 'Please enter employee name';
                         }
-                        // If not empty, return null (no error)
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // ========================================================
-                    // FIELD 2 - Employee ID
-                    // ========================================================
-                    _buildLabel('Employee ID (uid)'),
+                    // Employee ID
+                    _buildModernLabel('Employee ID'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _employeeIDController,
-                      decoration: _buildInputDecoration(hintText: 'Enter employee ID'),
+                      decoration: _buildModernInputDecoration(
+                        hintText: 'Enter employee ID',
+                        prefixIcon: Icons.fingerprint,
+                      ),
                       style: _inputTextStyle,
                       validator: (value) {
-                        if ((value?.isEmpty ?? true) && (_employeeEmailController.text.isEmpty)) {
+                        if ((value?.isEmpty ?? true) &&
+                            (_employeeEmailController.text.isEmpty)) {
                           return 'Please enter employee ID or email';
                         }
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
 
-                    // ========================================================
-                    // FIELD 4 - Employee Account Number
-                    // ========================================================
-                    _buildLabel('Account Number'),
+              // ============================================================
+              // BANK DETAILS CARD
+              // ============================================================
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_outlined,
+                            color: Colors.green,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Bank Details',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F1E3C),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Account Number
+                    _buildModernLabel('Account Number'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _employeeAccountController,
-                      decoration: _buildInputDecoration(hintText: 'Enter account number'),
+                      decoration: _buildModernInputDecoration(
+                        hintText: 'Enter account number',
+                        prefixIcon: Icons.credit_card_outlined,
+                      ),
                       style: _inputTextStyle,
                       keyboardType: TextInputType.number,
                       validator: (value) {
@@ -374,14 +687,15 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ========================================================
-                    // FIELD 5 - Bank Name
-                    // ========================================================
-                    _buildLabel('Bank Name'),
+                    // Bank Name
+                    _buildModernLabel('Bank Name'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _employeeBankController,
-                      decoration: _buildInputDecoration(hintText: 'Enter bank name'),
+                      decoration: _buildModernInputDecoration(
+                        hintText: 'Enter bank name',
+                        prefixIcon: Icons.business_outlined,
+                      ),
                       style: _inputTextStyle,
                       validator: (value) {
                         if (value?.isEmpty ?? true) {
@@ -390,57 +704,134 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
 
-                    // ========================================================
-                    // FIELD 4 - Transfer Amount
-                    // ========================================================
-                    const Text(
-                      'Transfer Amount',
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 21, 36, 69),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
+              // ============================================================
+              // TRANSFER AMOUNT CARD
+              // ============================================================
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _transferAmountController,
-                      decoration: _buildInputDecoration(hintText: '0.00').copyWith(
-                        // use prefixIcon so the RM label remains visible at all times
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.only(left: 20.0, right: 8.0),
-                          child: Text('RM', style: _inputTextStyle),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.payments_outlined,
+                            color: Colors.purple,
+                            size: 20,
+                          ),
                         ),
-                        // reduce default left padding introduced by prefixIcon
-                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Transfer Amount',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F1E3C),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
-                      style: _inputTextStyle,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Please enter transfer amount';
-                        }
-                        // Try to convert to number
-                        double? amount = double.tryParse(value!);
-                        if (amount == null || amount <= 0) {
-                          return 'Please enter a valid amount (greater than 0)';
-                        }
-                        return null;
-                      },
+                      child: TextFormField(
+                        controller: _transferAmountController,
+                        decoration: InputDecoration(
+                          prefixIcon: Container(
+                            padding: const EdgeInsets.only(left: 20, right: 8),
+                            child: Text(
+                              'RM',
+                              style: TextStyle(
+                                color: const Color(
+                                  0xFF0F1E3C,
+                                ).withValues(alpha: 0.6),
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          prefixIconConstraints: const BoxConstraints(
+                            minWidth: 0,
+                            minHeight: 0,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 20,
+                          ),
+                          hintText: '0.00',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: const TextStyle(
+                          color: Color(0xFF0F1E3C),
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textAlign: TextAlign.left,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter transfer amount';
+                          }
+                          double? amount = double.tryParse(value!);
+                          if (amount == null || amount <= 0) {
+                            return 'Please enter a valid amount';
+                          }
+                          return null;
+                        },
+                      ),
                     ),
                     const SizedBox(height: 16),
 
-                    // ========================================================
-                    // FIELD 5 - Transfer Description/Reason
-                    // ========================================================
-                    _buildLabel('Transfer Description'),
+                    // Description
+                    _buildModernLabel('Transfer Description'),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,
-                      decoration: _buildInputDecoration(hintText: 'e.g., Salary, Bonus, Reimbursement'),
+                      decoration: _buildModernInputDecoration(
+                        hintText: 'e.g., Salary, Bonus, Reimbursement',
+                        prefixIcon: Icons.description_outlined,
+                      ),
                       style: _inputTextStyle,
-                      maxLines: 3, // Allow multiple lines for description
+                      maxLines: 2,
                       validator: (value) {
                         if (value?.isEmpty ?? true) {
                           return 'Please enter transfer description';
@@ -448,45 +839,114 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
-
-                    // ========================================================
-                    // DISCLAIMER SECTION
-                    // ========================================================
-                    _buildDisclaimerSection(),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+
+              // ============================================================
+              // DISCLAIMER CARD
+              // ============================================================
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.amber.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Important Notice',
+                          style: TextStyle(
+                            color: Colors.amber.shade800,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildModernDisclaimerPoint(
+                      'Verify employee details before submitting',
+                    ),
+                    _buildModernDisclaimerPoint(
+                      'Transfers are instant and non-reversible',
+                    ),
+                    _buildModernDisclaimerPoint(
+                      'Employee will be notified immediately',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
 
               // ============================================================
               // SUBMIT BUTTON
               // ============================================================
-              SizedBox(
-                // SizedBox = A box with a specific size
-                width: double.infinity, // Take full width
-                height: 50, // Height of 50 pixels
-                child: ElevatedButton(
-                  // ElevatedButton = A button with elevation (3D effect)
-                  onPressed: _submitTransfer,
-                  // When clicked, run the _submitTransfer function
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 39, 39, 215), // Purple color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
                   ),
-                  child: const Text(
-                    'Submit Transfer',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _submitTransfer,
+                    child: const Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Submit Transfer',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -495,140 +955,82 @@ class _EmployerTransferPageState extends State<EmployerTransferPage> {
   }
 
   // ========================================================================
-  // HELPER METHOD 1 - Build a label (like "Employee Name")
-  // This method is reused multiple times to avoid repeating code
+  // HELPER METHOD - Build modern label
   // ========================================================================
-  Widget _buildLabel(String label) {
-    // label = the text to display (passed in as parameter)
+  Widget _buildModernLabel(String label) {
     return Text(
       label,
-      style: const TextStyle(
-        color: Color.fromARGB(255, 53, 53, 53),
-        fontSize: 14,
-        fontWeight: FontWeight.w900,
+      style: TextStyle(
+        color: Colors.grey.shade600,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.3,
       ),
     );
   }
 
   // ========================================================================
-  // HELPER METHOD 2 - Build the styling for all input fields
-  // This makes all text fields look the same
+  // HELPER METHOD - Build modern input decoration
   // ========================================================================
-  InputDecoration _buildInputDecoration({String? hintText}) {
+  InputDecoration _buildModernInputDecoration({
+    String? hintText,
+    IconData? prefixIcon,
+  }) {
     return InputDecoration(
-      filled: true, // Fill the field with a background color
-      // Slight light fill so fields read as inputs but not fully white
-      fillColor: const Color.fromARGB(255, 141, 143, 145).withValues(alpha: 0.18),
-      
-      // Hint text that appears when field is empty
+      filled: true,
+      fillColor: const Color(0xFFF8F9FC),
       hintText: hintText,
-      
-      // Border when the field is enabled (ready to type)
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+      prefixIcon: prefixIcon != null
+          ? Padding(
+              padding: const EdgeInsets.only(left: 16, right: 12),
+              child: Icon(prefixIcon, color: Colors.grey.shade500, size: 22),
+            )
+          : null,
+      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: 0.92),
-          width: 1.4,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
       ),
-      
-      // Border when the field is focused (user is typing)
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: const Color.fromARGB(255, 107, 106, 106).withValues(alpha: 0.6),
-          width: 2.4,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF0F1E3C), width: 1.5),
       ),
-      
-      // Border when there's an error
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.8,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red),
       ),
-      
-      // Space inside the field (padding)
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      
-      // Style for placeholder text (darker for better readability)
-      hintStyle: const TextStyle(color: Color.fromARGB(255, 105, 104, 104)),
     );
   }
 
   // ========================================================================
-  // HELPER METHOD 3 - Build the disclaimer section
-  // This shows all the disclaimer text with bullet points
+  // HELPER METHOD - Build modern disclaimer point
   // ========================================================================
-  Widget _buildDisclaimerSection() {
-    return Column(
-      // Stack items vertically
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Disclaimer title
-        const Text(
-          'Important Notice:',
-          style: TextStyle(
-            color: Color.fromARGB(255, 21, 36, 69),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        
-        // Notice point 1
-        _buildDisclaimerPoint(
-          'Ensure the employee details are correct before submitting.',
-        ),
-        const SizedBox(height: 3),
-        
-        // Notice point 2
-        _buildDisclaimerPoint(
-          'Transfers are processed immediately and cannot be reversed.',
-        ),
-        const SizedBox(height: 3),
-        
-        // Notice point 3
-        _buildDisclaimerPoint(
-          'Employee will receive email and in-app notification of the transfer.',
-        ),
-      ],
-    );
-  }
-
-  // ========================================================================
-  // HELPER METHOD 4 - Build each disclaimer point with a bullet
-  // ========================================================================
-  Widget _buildDisclaimerPoint(String text) {
-    // text = the notice text (passed in as parameter)
-    return Row(
-      // Row = Arrange items horizontally (left to right)
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // The bullet point (a small circle)
-        const Padding(
-          padding: EdgeInsets.only(right: 12, top: 4),
-          child: Icon(
-            Icons.circle,
-            size: 6, // Very small circle
-            color: Color.fromARGB(255, 21, 36, 69),
-          ),
-        ),
-        // The notice text
-        Expanded(
-          // Expanded = Take up remaining space
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color.fromARGB(255, 21, 36, 69),
-              fontSize: 14,
-              height: 1.5, // Line height for better readability
+  Widget _buildModernDisclaimerPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle, size: 16, color: Colors.amber.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.amber.shade900,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

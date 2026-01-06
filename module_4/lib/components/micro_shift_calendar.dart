@@ -143,13 +143,13 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 24,
             offset: const Offset(0, 8),
             spreadRadius: 0,
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
             spreadRadius: 0,
@@ -183,7 +183,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
           end: Alignment.bottomRight,
           colors: [
             widget.selectedColor,
-            widget.selectedColor.withOpacity(0.85),
+            widget.selectedColor.withValues(alpha: 0.85),
           ],
         ),
       ),
@@ -206,7 +206,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
               Text(
                 DateFormat('yyyy').format(_currentMonth),
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -228,7 +228,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: Colors.white, size: 24),
@@ -326,28 +326,28 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
                   end: Alignment.bottomRight,
                   colors: [
                     widget.selectedColor,
-                    widget.selectedColor.withOpacity(0.8),
+                    widget.selectedColor.withValues(alpha: 0.8),
                   ],
                 )
               : null,
           color: isSelected
               ? null
               : isToday
-              ? widget.selectedColor.withOpacity(0.1)
+              ? widget.selectedColor.withValues(alpha: 0.1)
               : null,
           borderRadius: BorderRadius.circular(12),
           border: isAvailable && !isSelected
               ? Border.all(color: widget.availableBorderColor, width: 2.5)
               : isToday && !isSelected
               ? Border.all(
-                  color: widget.selectedColor.withOpacity(0.3),
+                  color: widget.selectedColor.withValues(alpha: 0.3),
                   width: 1.5,
                 )
               : null,
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: widget.selectedColor.withOpacity(0.4),
+                    color: widget.selectedColor.withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -355,7 +355,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
               : isAvailable
               ? [
                   BoxShadow(
-                    color: widget.availableBorderColor.withOpacity(0.2),
+                    color: widget.availableBorderColor.withValues(alpha: 0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -390,7 +390,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.selectedColor.withOpacity(0.05),
+        color: widget.selectedColor.withValues(alpha: 0.05),
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Column(
@@ -401,7 +401,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: widget.selectedColor.withOpacity(0.1),
+                  color: widget.selectedColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -436,11 +436,11 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: widget.selectedColor.withOpacity(0.2),
+                        color: widget.selectedColor.withValues(alpha: 0.2),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -464,7 +464,7 @@ class _MicroShiftCalendarState extends State<MicroShiftCalendar>
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: widget.selectedColor.withOpacity(0.1),
+                              color: widget.selectedColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -512,7 +512,7 @@ class MicroShiftTimeSelector extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -647,9 +647,9 @@ class _TimePickerButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

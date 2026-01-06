@@ -22,6 +22,10 @@ class _DiscoveryPageState extends State<DiscoveryPage>
     with TickerProviderStateMixin {
   int _selectedNavIndex = 0;
   final FirestoreService _service = FirestoreService();
+  
+  // Search controller
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   // Filter values
   double _distanceRange = 50.0; // km
@@ -66,6 +70,7 @@ class _DiscoveryPageState extends State<DiscoveryPage>
   @override
   void dispose() {
     _headerAnimController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -149,7 +154,7 @@ class _DiscoveryPageState extends State<DiscoveryPage>
         slivers: [
           _buildSliverAppBar(),
           SliverToBoxAdapter(child: _buildQuickFilters()),
-          _buildJobsList(),
+          _buildSmartJobSections(),
         ],
       ),
       bottomNavigationBar: widget.showBottomNav
@@ -199,7 +204,7 @@ class _DiscoveryPageState extends State<DiscoveryPage>
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6366F1).withOpacity(0.4),
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.4),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -229,7 +234,7 @@ class _DiscoveryPageState extends State<DiscoveryPage>
                               Text(
                                 'Find your perfect opportunity',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   fontSize: 14,
                                 ),
                               ),
@@ -239,65 +244,114 @@ class _DiscoveryPageState extends State<DiscoveryPage>
                       ],
                     ),
                     const SizedBox(height: 20),
-                    // Search-like filter button
-                    GestureDetector(
-                      onTap: _showFilterBottomSheet,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.15),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.tune_rounded,
-                              color: Colors.white.withOpacity(0.9),
-                              size: 22,
+                    // Search bar with filter icon
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.15),
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Tap to filter jobs...',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                            child: TextField(
+                              controller: _searchController,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Search job titles...',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
                                   fontSize: 15,
                                 ),
+                                prefixIcon: Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  size: 22,
+                                ),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: Icon(
+                                          Icons.clear_rounded,
+                                          color: Colors.white.withValues(alpha: 0.7),
+                                          size: 20,
+                                        ),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          setState(() => _searchQuery = '');
+                                        },
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                setState(() => _searchQuery = value.trim().toLowerCase());
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: _showFilterBottomSheet,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              gradient: _activeFiltersCount > 0
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                    )
+                                  : null,
+                              color: _activeFiltersCount > 0
+                                  ? null
+                                  : Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _activeFiltersCount > 0
+                                    ? Colors.transparent
+                                    : Colors.white.withValues(alpha: 0.15),
                               ),
                             ),
-                            if (_activeFiltersCount > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(
+                                  Icons.tune_rounded,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  size: 22,
                                 ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF10B981),
-                                      Color(0xFF059669),
-                                    ],
+                                if (_activeFiltersCount > 0)
+                                  Positioned(
+                                    top: -6,
+                                    right: -6,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.redAccent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Text(
+                                        '$_activeFiltersCount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '$_activeFiltersCount active',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -412,7 +466,7 @@ class _DiscoveryPageState extends State<DiscoveryPage>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? color.withOpacity(0.15) : Colors.white,
+          color: isActive ? color.withValues(alpha: 0.15) : Colors.white,
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
             color: isActive ? color : Colors.grey.shade300,
@@ -421,8 +475,8 @@ class _DiscoveryPageState extends State<DiscoveryPage>
           boxShadow: [
             BoxShadow(
               color: isActive
-                  ? color.withOpacity(0.2)
-                  : Colors.black.withOpacity(0.04),
+                  ? color.withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -476,7 +530,73 @@ class _DiscoveryPageState extends State<DiscoveryPage>
     return 'Any Date';
   }
 
-  Widget _buildJobsList() {
+  // Get overlapping skills between user and job
+  List<String> _getMatchingSkills(Job job) {
+    if (_userSkills.isEmpty || job.skillsRequired.isEmpty) return [];
+    return job.skillsRequired
+        .where((skill) => _userSkills.any(
+            (userSkill) => userSkill.toLowerCase() == skill.toLowerCase()))
+        .toList();
+  }
+
+  // Smart job categorization
+  Map<String, List<Job>> _categorizeJobs(List<Job> allJobs) {
+    final List<Job> recommended = [];
+    final List<Job> nearby = [];
+    final List<Job> moreJobs = [];
+    final Set<String> usedJobIds = {};
+
+    // First pass: Find recommended jobs (jobs with matching skills)
+    for (final job in allJobs) {
+      final matchingSkills = _getMatchingSkills(job);
+      if (matchingSkills.isNotEmpty) {
+        recommended.add(job);
+        usedJobIds.add(job.id);
+      }
+    }
+
+    // Sort recommended by number of matching skills (descending)
+    recommended.sort((a, b) {
+      final aMatches = _getMatchingSkills(a).length;
+      final bMatches = _getMatchingSkills(b).length;
+      return bMatches.compareTo(aMatches);
+    });
+
+    // Second pass: Find nearby jobs (within 15km, not already in recommended)
+    for (final job in allJobs) {
+      if (usedJobIds.contains(job.id)) continue;
+      final distance = _calculateJobDistance(job);
+      if (distance != null && distance <= 15) {
+        nearby.add(job);
+        usedJobIds.add(job.id);
+      }
+    }
+
+    // Sort nearby by distance (ascending)
+    nearby.sort((a, b) {
+      final distA = _calculateJobDistance(a) ?? double.infinity;
+      final distB = _calculateJobDistance(b) ?? double.infinity;
+      return distA.compareTo(distB);
+    });
+
+    // Third pass: Remaining jobs go to "More Jobs"
+    for (final job in allJobs) {
+      if (!usedJobIds.contains(job.id)) {
+        moreJobs.add(job);
+      }
+    }
+
+    // Sort more jobs by match score
+    moreJobs.sort((a, b) => _matchScore(b).compareTo(_matchScore(a)));
+
+    return {
+      'recommended': recommended,
+      'nearby': nearby,
+      'more': moreJobs,
+    };
+  }
+
+  Widget _buildSmartJobSections() {
     return StreamBuilder<List<Job>>(
       stream: _service.streamJobs(
         minPay: _minPay > 0 ? _minPay : null,
@@ -495,11 +615,18 @@ class _DiscoveryPageState extends State<DiscoveryPage>
 
         var jobs = snapshot.data ?? [];
 
+        // Apply search filter by job title
+        if (_searchQuery.isNotEmpty) {
+          jobs = jobs.where((job) {
+            return job.title.toLowerCase().contains(_searchQuery);
+          }).toList();
+        }
+
         // Apply distance filter client-side (since we need user's location)
         if (_distanceRange < 50 && _userGeoLocation != null) {
           jobs = jobs.where((job) {
             final distance = _calculateJobDistance(job);
-            if (distance == null) return true; // Include jobs without geo data
+            if (distance == null) return true;
             return distance <= _distanceRange;
           }).toList();
         }
@@ -508,21 +635,194 @@ class _DiscoveryPageState extends State<DiscoveryPage>
           return SliverFillRemaining(child: _buildEmptyState());
         }
 
-        // Sort by match score
-        final scored = jobs.map((j) => MapEntry(j, _matchScore(j))).toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
+        // Categorize jobs into sections
+        final categorized = _categorizeJobs(jobs);
+        final recommended = categorized['recommended']!;
+        final nearby = categorized['nearby']!;
+        final moreJobs = categorized['more']!;
 
-        return SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final job = scored[index].key;
-              final score = scored[index].value;
-              return _JobCard(
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Recommended For You Section
+              if (recommended.isNotEmpty) ...[
+                _buildSectionTitle(
+                  'Recommended For You',
+                  Icons.auto_awesome_rounded,
+                  const Color(0xFF0A1628),
+                  subtitle: 'Based on your skills',
+                ),
+                const SizedBox(height: 12),
+                _buildHorizontalJobCarousel(
+                  jobs: recommended,
+                  showMatchingSkills: true,
+                  cardGradient: const [Color(0xFF0A1628), Color(0xFF1A3A5C)],
+                ),
+                const SizedBox(height: 28),
+              ],
+
+              // Nearby You Section
+              if (nearby.isNotEmpty) ...[
+                _buildSectionTitle(
+                  'Nearby You',
+                  Icons.near_me_rounded,
+                  const Color(0xFF0A1628),
+                  subtitle: 'Within 15km of your location',
+                ),
+                const SizedBox(height: 12),
+                _buildHorizontalJobCarousel(
+                  jobs: nearby,
+                  showMatchingSkills: false,
+                  showDistance: true,
+                  cardGradient: const [Color(0xFF0A1628), Color(0xFF1A3A5C)],
+                ),
+                const SizedBox(height: 28),
+              ],
+
+              // More Jobs Section
+              if (moreJobs.isNotEmpty) ...[
+                _buildSectionTitle(
+                  'More Jobs',
+                  Icons.work_outline_rounded,
+                  const Color(0xFF0A1628),
+                  subtitle: 'Explore all opportunities',
+                ),
+                const SizedBox(height: 12),
+                _buildVerticalJobCarousel(moreJobs),
+              ],
+
+              const SizedBox(height: 100),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionTitle(
+    String title,
+    IconData icon,
+    Color color, {
+    String? subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withValues(alpha: 0.7)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalJobCarousel({
+    required List<Job> jobs,
+    required bool showMatchingSkills,
+    bool showDistance = false,
+    required List<Color> cardGradient,
+  }) {
+    return SizedBox(
+      height: showMatchingSkills ? 260 : 230,
+      child: PageView.builder(
+        controller: PageController(viewportFraction: 0.88),
+        itemCount: jobs.length,
+        itemBuilder: (context, index) {
+          final job = jobs[index];
+          final matchingSkills = _getMatchingSkills(job);
+          final distance = _calculateJobDistance(job);
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: index == 0 ? 8 : 4,
+              right: index == jobs.length - 1 ? 8 : 4,
+            ),
+            child: _HorizontalJobCard(
+              job: job,
+              matchingSkills: showMatchingSkills ? matchingSkills : [],
+              distance: distance,
+              showDistance: showDistance,
+              gradientColors: cardGradient,
+              onTap: () {
+                if (job.status == 'open') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StudentJobDetailsPage(
+                        job: job,
+                        distance: distance,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVerticalJobCarousel(List<Job> jobs) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: jobs.asMap().entries.map((entry) {
+          final job = entry.value;
+          final distance = _calculateJobDistance(job);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: AspectRatio(
+              aspectRatio: 1.45,
+              child: _HorizontalJobCard(
                 job: job,
-                isRecommended: score >= 0.6,
-                distance: _calculateJobDistance(job),
-                animationDelay: index * 100,
+                matchingSkills: const [],
+                distance: distance,
+                showDistance: true,
+                gradientColors: const [Color(0xFF0A1628), Color(0xFF1A3A5C)],
                 onTap: () {
                   if (job.status == 'open') {
                     Navigator.push(
@@ -530,17 +830,17 @@ class _DiscoveryPageState extends State<DiscoveryPage>
                       MaterialPageRoute(
                         builder: (_) => StudentJobDetailsPage(
                           job: job,
-                          distance: _calculateJobDistance(job),
+                          distance: distance,
                         ),
                       ),
                     );
                   }
                 },
-              );
-            }, childCount: scored.length),
-          ),
-        );
-      },
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -552,7 +852,7 @@ class _DiscoveryPageState extends State<DiscoveryPage>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -617,14 +917,15 @@ class _DiscoveryPageState extends State<DiscoveryPage>
 
     final distance = _calculateJobDistance(job);
     if (distance != null) {
-      if (distance <= 5)
+      if (distance <= 5) {
         score += 0.4;
-      else if (distance <= 15)
+      } else if (distance <= 15) {
         score += 0.3;
-      else if (distance <= 30)
+      } else if (distance <= 30) {
         score += 0.2;
-      else if (distance <= 50)
+      } else if (distance <= 50) {
         score += 0.1;
+      }
     } else if (_userLocation.isNotEmpty && job.location.isNotEmpty) {
       if (_userLocation.toLowerCase().trim() ==
           job.location.toLowerCase().trim()) {
@@ -748,7 +1049,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -849,7 +1150,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),
@@ -888,7 +1189,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6366F1).withOpacity(0.4),
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -948,7 +1249,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -1011,7 +1312,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               activeTrackColor: const Color(0xFF3B82F6),
               inactiveTrackColor: Colors.grey.shade300,
               thumbColor: const Color(0xFF3B82F6),
-              overlayColor: const Color(0xFF3B82F6).withOpacity(0.2),
+              overlayColor: const Color(0xFF3B82F6).withValues(alpha: 0.2),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
               trackHeight: 6,
             ),
@@ -1087,7 +1388,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               activeTrackColor: const Color(0xFF8B5CF6),
               inactiveTrackColor: Colors.grey.shade300,
               thumbColor: const Color(0xFF8B5CF6),
-              overlayColor: const Color(0xFF8B5CF6).withOpacity(0.2),
+              overlayColor: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
               trackHeight: 6,
             ),
@@ -1207,7 +1508,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF10B981).withOpacity(0.1)
+              ? const Color(0xFF10B981).withValues(alpha: 0.1)
               : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -1268,6 +1569,344 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
       'Dec',
     ];
     return '${d.day} ${months[d.month - 1]}';
+  }
+}
+
+// ============================================================================
+// HORIZONTAL JOB CARD (FOR SWIPEABLE CAROUSEL)
+// ============================================================================
+
+class _HorizontalJobCard extends StatelessWidget {
+  final Job job;
+  final List<String> matchingSkills;
+  final double? distance;
+  final bool showDistance;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+
+  const _HorizontalJobCard({
+    required this.job,
+    required this.matchingSkills,
+    required this.distance,
+    required this.showDistance,
+    required this.gradientColors,
+    required this.onTap,
+  });
+
+  String _formatDate(DateTime d) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dateRange = '${_formatDate(job.startDate)} - ${_formatDate(job.endDate)}';
+    String? timeRange;
+    if (job.startTime != null && job.endTime != null) {
+      timeRange = '${job.startTime} - ${job.endTime}';
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: gradientColors[0].withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with gradient - Title, Location, and Pay Rate
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradientColors,
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          job.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'RM ${job.pay}/hr',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        size: 13,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          job.location,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Content - Date, Time, Distance, Skills
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Date chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 12,
+                            color: Color(0xFF3B82F6),
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              dateRange,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF3B82F6),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Time and Distance row
+                    Row(
+                      children: [
+                        if (timeRange != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF7043).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.access_time_rounded,
+                                  size: 12,
+                                  color: Color(0xFFFF7043),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  timeRange,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFFFF7043),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (timeRange != null && distance != null)
+                          const SizedBox(width: 6),
+                        if (distance != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.near_me_rounded,
+                                  size: 12,
+                                  color: Color(0xFF10B981),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  LocationService.formatDistance(distance!),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    // Matching skills section
+                    if (matchingSkills.isNotEmpty) ...[
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF10B981).withValues(alpha: 0.1),
+                              const Color(0xFF059669).withValues(alpha: 0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 13,
+                                  color: Color(0xFF059669),
+                                ),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  'Your matching skills',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF059669),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: matchingSkills.take(3).map((skill) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    skill,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            if (matchingSkills.length > 3) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '+${matchingSkills.length - 3} more',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF059669),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (matchingSkills.isEmpty) const Spacer(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1372,12 +2011,12 @@ class _JobCardState extends State<_JobCard>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0A1628).withOpacity(0.08),
+                color: const Color(0xFF0A1628).withValues(alpha: 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -1405,6 +2044,7 @@ class _JobCardState extends State<_JobCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
@@ -1416,36 +2056,25 @@ class _JobCardState extends State<_JobCard>
                             ),
                           ),
                         ),
-                        if (widget.isRecommended)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.star_rounded,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Match',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'RM ${job.pay}/hr',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1453,7 +2082,7 @@ class _JobCardState extends State<_JobCard>
                       children: [
                         Icon(
                           Icons.location_on_outlined,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           size: 14,
                         ),
                         const SizedBox(width: 4),
@@ -1461,7 +2090,7 @@ class _JobCardState extends State<_JobCard>
                           child: Text(
                             job.location,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 13,
                             ),
                             maxLines: 1,
@@ -1501,47 +2130,9 @@ class _JobCardState extends State<_JobCard>
                       ),
                     ],
                     const SizedBox(height: 16),
-                    // Bottom row with salary and distance
+                    // Bottom row with distance and arrow
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                const Color(0xFF8B5CF6).withOpacity(0.15),
-                                const Color(0xFF7C3AED).withOpacity(0.1),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.payments_rounded,
-                                size: 16,
-                                color: Color(0xFF7C3AED),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'RM ${job.pay}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF7C3AED),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
                         if (widget.distance != null)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -1554,7 +2145,7 @@ class _JobCardState extends State<_JobCard>
                               border: Border.all(
                                 color: _getDistanceTextColor(
                                   widget.distance!,
-                                ).withOpacity(0.3),
+                                ).withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
@@ -1616,7 +2207,7 @@ class _JobCardState extends State<_JobCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -1638,24 +2229,26 @@ class _JobCardState extends State<_JobCard>
   }
 
   Color _getDistanceColor(double distanceKm) {
-    if (distanceKm <= 5)
+    if (distanceKm <= 5) {
       return Colors.green.shade50;
-    else if (distanceKm <= 15)
+    } else if (distanceKm <= 15) {
       return Colors.blue.shade50;
-    else if (distanceKm <= 30)
+    } else if (distanceKm <= 30) {
       return Colors.orange.shade50;
-    else
+    } else {
       return Colors.grey.shade100;
+    }
   }
 
   Color _getDistanceTextColor(double distanceKm) {
-    if (distanceKm <= 5)
+    if (distanceKm <= 5) {
       return Colors.green.shade700;
-    else if (distanceKm <= 15)
+    } else if (distanceKm <= 15) {
       return Colors.blue.shade700;
-    else if (distanceKm <= 30)
+    } else if (distanceKm <= 30) {
       return Colors.orange.shade700;
-    else
+    } else {
       return Colors.grey.shade700;
+    }
   }
 }

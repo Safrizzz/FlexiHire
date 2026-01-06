@@ -101,7 +101,7 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -144,8 +144,8 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              const Color(0xFF6366F1).withOpacity(0.2),
-                              const Color(0xFF8B5CF6).withOpacity(0.2),
+                              const Color(0xFF6366F1).withValues(alpha: 0.2),
+                              const Color(0xFF8B5CF6).withValues(alpha: 0.2),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
@@ -156,7 +156,7 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
                                 child: Image.network(
                                   photoUrl,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (context, error, stackTrace) =>
                                       _buildDefaultAvatar(name),
                                 ),
                               )
@@ -195,10 +195,10 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: statusColor.withOpacity(0.3),
+                            color: statusColor.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -307,12 +307,12 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF10B981).withOpacity(0.08),
-            const Color(0xFF059669).withOpacity(0.05),
+            const Color(0xFF10B981).withValues(alpha: 0.08),
+            const Color(0xFF059669).withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,7 +358,7 @@ class _ApplicantsPageState extends State<ApplicantsPage> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF10B981).withOpacity(0.15),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// A simple class to hold latitude and longitude coordinates
@@ -99,7 +100,7 @@ class LocationService {
       }
     } catch (e) {
       // Handle network errors silently
-      print('Geocoding error: $e');
+      debugPrint('Geocoding error: $e');
     }
 
     return null;
@@ -125,7 +126,7 @@ class LocationService {
         return result['display_name']?.toString();
       }
     } catch (e) {
-      print('Reverse geocoding error: $e');
+      debugPrint('Reverse geocoding error: $e');
     }
 
     return null;
@@ -152,7 +153,7 @@ class LocationService {
         return results.map((r) => PlaceSuggestion.fromJson(r)).toList();
       }
     } catch (e) {
-      print('Place search error: $e');
+      debugPrint('Place search error: $e');
     }
 
     return [];

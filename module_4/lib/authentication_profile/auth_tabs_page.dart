@@ -176,9 +176,9 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                           ),
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                         child: const Text(
                           'Find your perfect opportunity',
@@ -209,13 +209,13 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.white.withOpacity(0.2),
-                            Colors.white.withOpacity(0.1),
+                            Colors.white.withValues(alpha: 0.2),
+                            Colors.white.withValues(alpha: 0.1),
                           ],
                         ),
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 1.5,
                         ),
                       ),
@@ -227,10 +227,10 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
                             margin: const EdgeInsets.symmetric(horizontal: 28),
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                               ),
                             ),
                             child: TabBar(
@@ -242,7 +242,7 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF2196F3).withOpacity(0.4),
+                                    color: const Color(0xFF2196F3).withValues(alpha: 0.4),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -309,7 +309,7 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
               'Sign in to continue',
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 32),
@@ -388,7 +388,7 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
               'Sign up to get started',
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 28),
@@ -414,10 +414,10 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.3),
                   width: 1.5,
                 ),
               ),
@@ -437,8 +437,8 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Colors.white.withOpacity(0.2),
-                                  Colors.white.withOpacity(0.1),
+                                  Colors.white.withValues(alpha: 0.2),
+                                  Colors.white.withValues(alpha: 0.1),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(10),
@@ -544,7 +544,7 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -572,16 +572,16 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
               prefixIconConstraints: const BoxConstraints(minWidth: 50),
               suffixIcon: suffixIcon,
               filled: true,
-              fillColor: Colors.white.withOpacity(0.1),
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+              fillColor: Colors.white.withValues(alpha: 0.1),
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -619,7 +619,7 @@ class _AuthTabsPageState extends State<AuthTabsPage> with SingleTickerProviderSt
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2196F3).withOpacity(0.5),
+            color: const Color(0xFF2196F3).withValues(alpha: 0.5),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

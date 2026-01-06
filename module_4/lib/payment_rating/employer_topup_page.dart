@@ -147,7 +147,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
         icon: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
@@ -180,7 +180,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -266,7 +266,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -289,7 +289,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: (hasBank ? const Color(0xFF3B82F6) : Colors.grey).withOpacity(0.3),
+                      color: (hasBank ? const Color(0xFF3B82F6) : Colors.grey).withValues(alpha: 0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -352,8 +352,8 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        const Color(0xFF3B82F6).withOpacity(0.3),
-                        const Color(0xFF10B981).withOpacity(0.3),
+                        const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                        const Color(0xFF10B981).withValues(alpha: 0.3),
                       ],
                     ),
                   ),
@@ -362,7 +362,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -397,7 +397,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.3),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -485,14 +485,14 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF8B5CF6).withOpacity(0.35),
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
                         ]
                       : [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -522,7 +522,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -647,9 +647,9 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF8B5CF6).withOpacity(0.08),
+        color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -659,7 +659,7 @@ class _EmployerTopUpPageState extends State<EmployerTopUpPage> {
             child: Text(
               'Funds are credited instantly and can be used to pay workers for completed jobs.',
               style: TextStyle(
-                color: const Color(0xFF8B5CF6).withOpacity(0.9),
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.9),
                 fontSize: 13,
                 height: 1.4,
               ),

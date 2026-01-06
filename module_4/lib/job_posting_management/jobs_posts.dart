@@ -186,7 +186,7 @@ class _JobPostingPageState extends State<JobPostingPage> {
       endDate: latest ?? DateTime.now(),
       startTime: startTimeStr,
       endTime: endTimeStr,
-      skillsRequired: const [],
+      skillsRequired: job.skillsRequired,
       employerId: employerId,
       createdAt: DateTime.now(),
       status: job.status,
@@ -205,6 +205,7 @@ class _JobPostingPageState extends State<JobPostingPage> {
       description: beJob.description,
       microShifts: beJob.microShifts, // Get micro-shifts from backend
       status: beJob.status,
+      skillsRequired: beJob.skillsRequired,
       applicants: const [],
       hires: const [],
     );

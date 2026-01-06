@@ -145,7 +145,7 @@ class _MessagePageState extends State<MessagePage>
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.4),
+                            color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -176,7 +176,7 @@ class _MessagePageState extends State<MessagePage>
                           Text(
                             'Chat with employers & applicants',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -247,7 +247,7 @@ class _MessagePageState extends State<MessagePage>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -300,7 +300,7 @@ class _MessagePageState extends State<MessagePage>
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0A1628).withOpacity(0.3),
+            color: const Color(0xFF0A1628).withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -339,7 +339,7 @@ class _MessagePageState extends State<MessagePage>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -399,7 +399,7 @@ class _MessagePageState extends State<MessagePage>
                             return Text(
                               jobTitle.isEmpty ? 'Conversation' : jobTitle,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
+                                color: Colors.white.withValues(alpha: 0.7),
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -425,7 +425,7 @@ class _MessagePageState extends State<MessagePage>
         color: const Color(0xFFF0F4F8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -537,7 +537,7 @@ class _MessagePageState extends State<MessagePage>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -580,7 +580,7 @@ class _MessagePageState extends State<MessagePage>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF3B82F6).withOpacity(0.4),
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -703,7 +703,7 @@ class _ChatListItemState extends State<_ChatListItem>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0A1628).withOpacity(0.08),
+                color: const Color(0xFF0A1628).withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -729,7 +729,7 @@ class _ChatListItemState extends State<_ChatListItem>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF3B82F6).withOpacity(0.2),
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -914,8 +914,8 @@ class _MessageBubble extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     color: isMine
-                        ? const Color(0xFF3B82F6).withOpacity(0.3)
-                        : Colors.black.withOpacity(0.06),
+                        ? const Color(0xFF3B82F6).withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.06),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -938,7 +938,7 @@ class _MessageBubble extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       color: isMine
-                          ? Colors.white.withOpacity(0.7)
+                          ? Colors.white.withValues(alpha: 0.7)
                           : Colors.grey.shade500,
                     ),
                   ),
@@ -964,7 +964,7 @@ class _MessageBubble extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),

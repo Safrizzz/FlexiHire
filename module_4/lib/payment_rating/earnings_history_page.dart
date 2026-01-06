@@ -181,8 +181,8 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
     switch (type) {
       case 'withdrawal':
         icon = Icons.account_balance_outlined;
-        iconBgColor = Colors.red.shade50;
-        iconColor = Colors.red.shade600;
+        iconBgColor = Colors.blue.shade50;
+        iconColor = Colors.blue.shade600;
         title = 'Withdrawal';
         // Parse bank info from description
         final bankInfo = _parseWithdrawalDescription(description);
@@ -321,12 +321,12 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
                     
                     // Amount
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: isPositive 
                             ? Colors.green.shade50 
                             : Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isPositive 
                               ? Colors.green.shade100 
@@ -339,7 +339,7 @@ class _EarningsHistoryPageState extends State<EarningsHistoryPage> {
                           color: isPositive 
                               ? Colors.green.shade700 
                               : Colors.red.shade700,
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

@@ -278,8 +278,9 @@ class FirestoreService {
             int toTime(Map<String, dynamic> m) {
               final v = m['createdAt'];
               if (v is Timestamp) return v.millisecondsSinceEpoch;
-              if (v is String)
+              if (v is String) {
                 return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
+              }
               if (v is DateTime) return v.millisecondsSinceEpoch;
               return 0;
             }
@@ -463,8 +464,9 @@ class FirestoreService {
             int toTime(Map<String, dynamic> m) {
               final v = m['createdAt'];
               if (v is Timestamp) return v.millisecondsSinceEpoch;
-              if (v is String)
+              if (v is String) {
                 return DateTime.tryParse(v)?.millisecondsSinceEpoch ?? 0;
+              }
               if (v is DateTime) return v.millisecondsSinceEpoch;
               return 0;
             }

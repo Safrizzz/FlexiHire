@@ -20,7 +20,7 @@ import 'job_details_page.dart';
 
 class MyJobsPage extends StatefulWidget {
   final bool showBottomNav;
-  
+
   const MyJobsPage({super.key, this.showBottomNav = true});
 
   @override
@@ -177,7 +177,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.4),
+                            color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -208,7 +208,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
                           Text(
                             'Track your job applications',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -242,6 +242,8 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
               Icons.check_circle_outline,
             ),
             const SizedBox(width: 8),
+            _buildFilterChip('completed', 'Completed', Icons.task_alt_rounded),
+            const SizedBox(width: 8),
             _buildFilterChip('rejected', 'Rejected', Icons.cancel_outlined),
             const SizedBox(width: 8),
             _buildFilterChip('withdrawn', 'Cancelled', Icons.close_rounded),
@@ -270,14 +272,14 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF3B82F6).withOpacity(0.3),
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
@@ -322,7 +324,14 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
 
         // Filter applications
         if (_selectedFilter != 'all') {
-          apps = apps.where((a) => a.status == _selectedFilter).toList();
+          if (_selectedFilter == 'completed') {
+            // Show both completed and paid when filtering for completed
+            apps = apps
+                .where((a) => a.status == 'completed' || a.status == 'paid')
+                .toList();
+          } else {
+            apps = apps.where((a) => a.status == _selectedFilter).toList();
+          }
         }
 
         if (apps.isEmpty) {
@@ -337,21 +346,29 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
               return FutureBuilder<Job?>(
                 future: _fetchJob(app.jobId),
                 builder: (context, jobSnap) {
+                  // Show loading shimmer while job is being fetched
+                  if (jobSnap.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingCard(index);
+                  }
+                  
                   final job = jobSnap.data;
+                  // If job is null after loading, skip this card
+                  if (job == null) {
+                    return const SizedBox.shrink();
+                  }
+                  
                   return _ApplicationCard(
                     application: app,
                     job: job,
                     animationDelay: index * 80,
-                    onChat: job?.status == 'open'
-                        ? () => _openChat(job!, app.jobId)
-                        : null,
+                    onChat: () => _openChat(job, app.jobId),
                     onWithdraw: app.status == 'applied'
                         ? () => _withdrawApplication(app.id)
                         : null,
-                    onRate: job?.status == 'completed'
-                        ? () => _rateEmployer(job!, app.jobId)
+                    onRate: (app.status == 'completed' || app.status == 'paid')
+                        ? () => _rateEmployer(job, app.jobId)
                         : null,
-                    onTap: job != null ? () => _viewJobDetails(job) : null,
+                    onTap: () => _viewJobDetails(job),
                   );
                 },
               );
@@ -370,7 +387,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -463,7 +480,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(
-              'Cancel',
+              'Keep',
               style: TextStyle(color: Colors.grey.shade600),
             ),
           ),
@@ -475,7 +492,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -510,7 +527,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
       shellState.navigateToTab(index);
       return;
     }
-    
+
     // Fallback to traditional navigation
     switch (index) {
       case 0:
@@ -525,6 +542,79 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
         Navigator.of(context).pushReplacementNamed('/profile');
         break;
     }
+  }
+
+  Widget _buildLoadingCard(int index) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 16,
+                          width: 120,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          height: 12,
+                          width: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                height: 12,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<Job?> _fetchJob(String jobId) async {
@@ -607,7 +697,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF10B981).withOpacity(0.4),
+                            color: const Color(0xFF10B981).withValues(alpha: 0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -638,7 +728,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
                           Text(
                             'Manage your job listings',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -683,7 +773,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -838,7 +928,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
       endDate: latest ?? DateTime.now(),
       startTime: startTimeStr,
       endTime: endTimeStr,
-      skillsRequired: const [],
+      skillsRequired: job.skillsRequired,
       employerId: employerId,
       createdAt: DateTime.now(),
       status: job.status,
@@ -857,6 +947,7 @@ class _MyJobsPageState extends State<MyJobsPage> with TickerProviderStateMixin {
       description: beJob.description,
       microShifts: beJob.microShifts,
       status: beJob.status,
+      skillsRequired: beJob.skillsRequired,
       applicants: const [],
       hires: const [],
     );
@@ -947,12 +1038,12 @@ class _ApplicationCardState extends State<_ApplicationCard>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: _getStatusColor(app.status).withOpacity(0.1),
+                color: _getStatusColor(app.status).withValues(alpha: 0.1),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -1074,7 +1165,7 @@ class _ApplicationCardState extends State<_ApplicationCard>
                                   decoration: BoxDecoration(
                                     color: const Color(
                                       0xFF3B82F6,
-                                    ).withOpacity(0.1),
+                                    ).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Icon(
@@ -1114,7 +1205,7 @@ class _ApplicationCardState extends State<_ApplicationCard>
                                   decoration: BoxDecoration(
                                     color: const Color(
                                       0xFFFF7043,
-                                    ).withOpacity(0.1),
+                                    ).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Icon(
@@ -1203,10 +1294,10 @@ class _ApplicationCardState extends State<_ApplicationCard>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: isDisabled ? Colors.grey.shade100 : color.withOpacity(0.1),
+          color: isDisabled ? Colors.grey.shade100 : color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isDisabled ? Colors.grey.shade200 : color.withOpacity(0.3),
+            color: isDisabled ? Colors.grey.shade200 : color.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -1233,6 +1324,22 @@ class _ApplicationCardState extends State<_ApplicationCard>
   }
 
   Widget _buildStatusChip(String status) {
+    // For paid status, show both COMPLETED and PAID badges
+    if (status == 'paid') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildSingleStatusChip('completed'),
+          const SizedBox(height: 4),
+          _buildSingleStatusChip('paid'),
+        ],
+      );
+    }
+    return _buildSingleStatusChip(status);
+  }
+
+  Widget _buildSingleStatusChip(String status) {
     final color = _getStatusColor(status);
     final bgColor = _getStatusBgColor(status);
     final icon = _getStatusIcon(status);
@@ -1245,7 +1352,7 @@ class _ApplicationCardState extends State<_ApplicationCard>
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1292,6 +1399,10 @@ class _ApplicationCardState extends State<_ApplicationCard>
         return const Color(0xFF3B82F6);
       case 'accepted':
         return const Color(0xFF10B981);
+      case 'completed':
+        return const Color(0xFF8B5CF6);
+      case 'paid':
+        return const Color(0xFF059669);
       case 'rejected':
         return const Color(0xFFEF4444);
       case 'withdrawn':
@@ -1307,6 +1418,10 @@ class _ApplicationCardState extends State<_ApplicationCard>
         return const Color(0xFFEFF6FF);
       case 'accepted':
         return const Color(0xFFECFDF5);
+      case 'completed':
+        return const Color(0xFFF5F3FF);
+      case 'paid':
+        return const Color(0xFFD1FAE5);
       case 'rejected':
         return const Color(0xFFFEF2F2);
       case 'withdrawn':
@@ -1322,6 +1437,10 @@ class _ApplicationCardState extends State<_ApplicationCard>
         return Icons.send_rounded;
       case 'accepted':
         return Icons.check_circle_rounded;
+      case 'completed':
+        return Icons.task_alt_rounded;
+      case 'paid':
+        return Icons.payments_rounded;
       case 'rejected':
         return Icons.cancel_rounded;
       case 'withdrawn':
@@ -1404,7 +1523,7 @@ class _EmployerJobCardState extends State<_EmployerJobCard>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0A1628).withOpacity(0.08),
+                color: const Color(0xFF0A1628).withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -1467,7 +1586,7 @@ class _EmployerJobCardState extends State<_EmployerJobCard>
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.1),
+                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -1550,7 +1669,7 @@ class _EmployerJobCardState extends State<_EmployerJobCard>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -1604,7 +1723,7 @@ class _EmployerJobCardState extends State<_EmployerJobCard>
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

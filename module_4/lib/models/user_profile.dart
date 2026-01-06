@@ -1,6 +1,25 @@
 import 'user_role.dart';
 import '../services/location_service.dart';
 
+/// Model for language proficiency
+class LanguageProficiency {
+  final String language;
+  final String level; // 'Basic', 'Intermediate', 'Advanced', 'Native'
+
+  LanguageProficiency({required this.language, required this.level});
+
+  factory LanguageProficiency.fromMap(Map<String, dynamic> data) {
+    return LanguageProficiency(
+      language: data['language']?.toString() ?? '',
+      level: data['level']?.toString() ?? 'Basic',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {'language': language, 'level': level};
+  }
+}
+
 /// Model for job experience entry
 class JobExperience {
   final String title;
@@ -83,7 +102,7 @@ class UserProfile {
   final String gender;
   final String ethnicity;
   final DateTime? dateOfBirth;
-  final String languageProficiency;
+  final List<LanguageProficiency> languageProficiency;
 
   // Job experience
   final List<JobExperience> jobExperience;
@@ -107,7 +126,7 @@ class UserProfile {
     this.gender = '',
     this.ethnicity = '',
     this.dateOfBirth,
-    this.languageProficiency = '',
+    this.languageProficiency = const [],
     this.jobExperience = const [],
     this.documents = const [],
   });
@@ -143,6 +162,27 @@ class UserProfile {
           .toList();
     }
 
+    // Parse language proficiency
+    List<LanguageProficiency> languages = [];
+    if (data['languageProficiency'] != null) {
+      if (data['languageProficiency'] is List) {
+        languages = (data['languageProficiency'] as List)
+            .map(
+              (e) => LanguageProficiency.fromMap(Map<String, dynamic>.from(e)),
+            )
+            .toList();
+      } else if (data['languageProficiency'] is String &&
+          data['languageProficiency'].toString().isNotEmpty) {
+        // Backward compatibility: convert old string format to new format
+        languages = [
+          LanguageProficiency(
+            language: data['languageProficiency'].toString(),
+            level: 'Intermediate',
+          ),
+        ];
+      }
+    }
+
     return UserProfile(
       id: id,
       email: data['email']?.toString() ?? '',
@@ -163,7 +203,7 @@ class UserProfile {
       dateOfBirth: data['dateOfBirth'] != null
           ? DateTime.tryParse(data['dateOfBirth'].toString())
           : null,
-      languageProficiency: data['languageProficiency']?.toString() ?? '',
+      languageProficiency: languages,
       jobExperience: jobExp,
       documents: docs,
     );
@@ -185,7 +225,7 @@ class UserProfile {
       'gender': gender,
       'ethnicity': ethnicity,
       if (dateOfBirth != null) 'dateOfBirth': dateOfBirth!.toIso8601String(),
-      'languageProficiency': languageProficiency,
+      'languageProficiency': languageProficiency.map((e) => e.toMap()).toList(),
       'jobExperience': jobExperience.map((e) => e.toMap()).toList(),
       'documents': documents.map((e) => e.toMap()).toList(),
     };
@@ -208,7 +248,7 @@ class UserProfile {
     String? gender,
     String? ethnicity,
     DateTime? dateOfBirth,
-    String? languageProficiency,
+    List<LanguageProficiency>? languageProficiency,
     List<JobExperience>? jobExperience,
     List<SupportingDocument>? documents,
   }) {

@@ -5,6 +5,7 @@ import 'micro_shift.dart';
 import '../services/location_service.dart';
 import '../components/location_picker.dart';
 import '../components/micro_shift_calendar.dart';
+import '../components/skills_picker.dart';
 
 class CreateJobPage extends StatefulWidget {
   final Job? existingJob;
@@ -32,6 +33,9 @@ class _CreateJobPageState extends State<CreateJobPage> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
 
+  // Skills required for the job
+  List<String> _skillsRequired = [];
+
   bool get isEdit => widget.existingJob != null;
 
   @override
@@ -46,6 +50,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
       _geoLocation = job.geoLocation;
       _payRateController.text = job.payRate.toString();
       _descriptionController.text = job.description;
+      _skillsRequired = List.from(job.skillsRequired);
 
       // Load existing micro-shifts into calendar selection
       if (job.microShifts.isNotEmpty) {
@@ -119,7 +124,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Color(0xFF0F1E3C)),
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
@@ -219,6 +224,18 @@ class _CreateJobPageState extends State<CreateJobPage> {
               const SizedBox(height: 12),
               _buildModernDescriptionField(),
 
+              const SizedBox(height: 24),
+
+              // Skills Required Section
+              _buildSectionHeader('Skills Required', Icons.psychology_outlined),
+              const SizedBox(height: 8),
+              Text(
+                'Add skills that candidates should have for this job',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              _buildSkillsCard(),
+
               const SizedBox(height: 32),
 
               // Save Button
@@ -244,7 +261,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F1E3C).withOpacity(0.3),
+                color: const Color(0xFF0F1E3C).withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -276,7 +293,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -313,7 +330,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -351,6 +368,68 @@ class _CreateJobPageState extends State<CreateJobPage> {
     );
   }
 
+  Widget _buildSkillsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SkillsPicker(
+              selectedSkills: _skillsRequired,
+              onSkillsChanged: (skills) {
+                setState(() => _skillsRequired = skills);
+              },
+              maxSkills: 10,
+            ),
+            if (_skillsRequired.isEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Adding skills helps match your job with qualified candidates',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildModernDescriptionField() {
     return Container(
       decoration: BoxDecoration(
@@ -358,7 +437,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -393,7 +472,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
         border: Border.all(color: Colors.green.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -477,7 +556,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
         boxShadow: canSave
             ? [
                 BoxShadow(
-                  color: const Color(0xFF0F1E3C).withOpacity(0.4),
+                  color: const Color(0xFF0F1E3C).withValues(alpha: 0.4),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -564,6 +643,7 @@ class _CreateJobPageState extends State<CreateJobPage> {
       payRate: parsedPayRate,
       description: _descriptionController.text,
       microShifts: microShifts,
+      skillsRequired: _skillsRequired,
       applicants: widget.existingJob?.applicants ?? [],
       hires: widget.existingJob?.hires ?? [],
     );

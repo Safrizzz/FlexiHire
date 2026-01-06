@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/firestore_service.dart';
 import '../models/application.dart';
 import '../models/user_profile.dart';
+import '../payment_rating/employer_transfer_page.dart';
 
 class CompletionPage extends StatefulWidget {
   final String jobId;
@@ -15,50 +16,6 @@ class CompletionPage extends StatefulWidget {
 
 class _CompletionPageState extends State<CompletionPage> {
   final _service = FirestoreService();
-  final Map<String, bool> _payingMap =
-      {}; // Track which payments are processing
-
-  Future<void> _payWorker(Application app) async {
-    setState(() => _payingMap[app.id] = true);
-
-    try {
-      // 1. Record the transfer transaction
-      await _service.recordTransfer(
-        toIdentifier: app.applicantId,
-        amount: widget.pay.toDouble(),
-        description: 'Job completion payment for job ${widget.jobId}',
-      );
-
-      // 2. Update application status to 'paid'
-      await _service.updateApplicationStatus(app.id, 'paid');
-
-      if (!mounted) return;
-
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 12),
-              Text('RM ${widget.pay.toStringAsFixed(2)} paid successfully!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _payingMap[app.id] = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +40,7 @@ class _CompletionPageState extends State<CompletionPage> {
         icon: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
@@ -120,7 +77,7 @@ class _CompletionPageState extends State<CompletionPage> {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF10B981).withOpacity(0.4),
+                              color: const Color(0xFF10B981).withValues(alpha: 0.4),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -178,9 +135,9 @@ class _CompletionPageState extends State<CompletionPage> {
           );
         }
 
-        // Get accepted and paid applications
+        // Get completed and paid applications (only show workers marked as completed)
         final applications = (snapshot.data ?? [])
-            .where((a) => a.status == 'accepted' || a.status == 'paid')
+            .where((a) => a.status == 'completed' || a.status == 'paid')
             .toList();
 
         if (applications.isEmpty) {
@@ -189,7 +146,7 @@ class _CompletionPageState extends State<CompletionPage> {
 
         final paidCount = applications.where((a) => a.status == 'paid').length;
         final pendingCount = applications
-            .where((a) => a.status == 'accepted')
+            .where((a) => a.status == 'completed')
             .length;
 
         return Padding(
@@ -255,7 +212,7 @@ class _CompletionPageState extends State<CompletionPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F1E3C).withOpacity(0.3),
+            color: const Color(0xFF0F1E3C).withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -271,7 +228,7 @@ class _CompletionPageState extends State<CompletionPage> {
               color: const Color(0xFF10B981),
             ),
           ),
-          Container(width: 1, height: 50, color: Colors.white.withOpacity(0.2)),
+          Container(width: 1, height: 50, color: Colors.white.withValues(alpha: 0.2)),
           Expanded(
             child: _buildSummaryItem(
               icon: Icons.pending_rounded,
@@ -311,7 +268,7 @@ class _CompletionPageState extends State<CompletionPage> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.7)),
+          style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
         ),
       ],
     );
@@ -319,37 +276,40 @@ class _CompletionPageState extends State<CompletionPage> {
 
   Widget _buildWorkerCard(Application app) {
     final isPaid = app.status == 'paid';
-    final isPaying = _payingMap[app.id] ?? false;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: isPaid
-            ? Border.all(
-                color: const Color(0xFF10B981).withOpacity(0.3),
-                width: 1.5,
-              )
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return FutureBuilder<UserProfile?>(
+      future: _service.getUserProfile(app.applicantId),
+      builder: (context, snap) {
+        final profile = snap.data;
+        final name = profile?.displayName ?? 'Loading...';
+        final email = profile?.email ?? '';
+        final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: isPaid
+                ? Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                    width: 1.5,
+                  )
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Worker Avatar
-            FutureBuilder<UserProfile?>(
-              future: _service.getUserProfile(app.applicantId),
-              builder: (context, snap) {
-                final profile = snap.data;
-                return Container(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Worker Avatar
+                Container(
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
@@ -366,12 +326,9 @@ class _CompletionPageState extends State<CompletionPage> {
                           child: Image.network(
                             profile!.photoUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
+                            errorBuilder: (context, error, stackTrace) => Center(
                               child: Text(
-                                (profile.displayName.isNotEmpty
-                                        ? profile.displayName[0]
-                                        : 'U')
-                                    .toUpperCase(),
+                                initials,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -383,10 +340,7 @@ class _CompletionPageState extends State<CompletionPage> {
                         )
                       : Center(
                           child: Text(
-                            (profile?.displayName.isNotEmpty == true
-                                    ? profile!.displayName[0]
-                                    : 'U')
-                                .toUpperCase(),
+                            initials,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -394,22 +348,16 @@ class _CompletionPageState extends State<CompletionPage> {
                             ),
                           ),
                         ),
-                );
-              },
-            ),
-            const SizedBox(width: 14),
+                ),
+                const SizedBox(width: 14),
 
-            // Worker Info
-            Expanded(
-              child: FutureBuilder<UserProfile?>(
-                future: _service.getUserProfile(app.applicantId),
-                builder: (context, snap) {
-                  final profile = snap.data;
-                  return Column(
+                // Worker Info
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        profile?.displayName ?? 'Loading...',
+                        name,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -436,87 +384,95 @@ class _CompletionPageState extends State<CompletionPage> {
                         ],
                       ),
                     ],
-                  );
-                },
-              ),
-            ),
-
-            // Pay Button or Paid Badge
-            if (isPaid)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF10B981).withOpacity(0.3),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF10B981),
-                      size: 18,
+
+                // Pay Button or Paid Badge
+                if (isPaid)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Paid',
-                      style: TextStyle(
-                        color: Color(0xFF10B981),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.3),
                       ),
                     ),
-                  ],
-                ),
-              )
-            else
-              SizedBox(
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: isPaying ? null : () => _payWorker(app),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF10B981),
+                          size: 18,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Paid',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final result = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EmployerTransferPage(
+                              employeeId: app.applicantId,
+                              employeeName: name,
+                              employeeEmail: email,
+                              transferAmount: widget.pay.toDouble(),
+                              applicationId: app.id,
+                              jobId: widget.jobId,
+                            ),
+                          ),
+                        );
+                        if (result == true && mounted) {
+                          setState(() {}); // Refresh the page
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.send_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Pay',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: isPaying
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.send_rounded, size: 16),
-                            SizedBox(width: 6),
-                            Text(
-                              'Pay',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -549,7 +505,7 @@ class _CompletionPageState extends State<CompletionPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Accept applicants first before making payments',
+              'Mark workers as completed in the Hired page first',
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
@@ -564,7 +520,7 @@ class _CompletionPageState extends State<CompletionPage> {
       stream: _service.streamJobApplications(widget.jobId),
       builder: (context, snapshot) {
         final applications = (snapshot.data ?? [])
-            .where((a) => a.status == 'accepted' || a.status == 'paid')
+            .where((a) => a.status == 'completed' || a.status == 'paid')
             .toList();
         final allPaid =
             applications.isNotEmpty &&
@@ -576,7 +532,7 @@ class _CompletionPageState extends State<CompletionPage> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 10,
                 offset: const Offset(0, -4),
               ),
@@ -602,7 +558,7 @@ class _CompletionPageState extends State<CompletionPage> {
                           widget.jobId,
                           'completed',
                         );
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         HapticFeedback.heavyImpact();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -616,6 +572,7 @@ class _CompletionPageState extends State<CompletionPage> {
                             backgroundColor: Colors.green,
                           ),
                         );
+                        if (!context.mounted) return;
                         Navigator.pop(context);
                       }
                     : null,

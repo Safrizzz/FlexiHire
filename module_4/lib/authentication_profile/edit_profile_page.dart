@@ -10,6 +10,7 @@ import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
 import '../services/location_service.dart';
 import '../components/location_picker.dart';
+import '../components/skills_picker.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -19,7 +20,7 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
   final _formKey = GlobalKey<FormState>();
   final _service = FirestoreService();
   bool _loading = true;
@@ -30,13 +31,13 @@ class _EditProfilePageState extends State<EditProfilePage>
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _skillsCtrl = TextEditingController();
+  List<String> _skills = [];
   String _locationAddress = '';
   GeoLocation? _geoLocation;
   String _selectedGender = '';
   String _selectedEthnicity = '';
   DateTime? _dateOfBirth;
-  String _selectedLanguage = '';
+  List<LanguageProficiency> _languages = [];
 
   // Bank Details Controllers
   final _bankNameCtrl = TextEditingController();
@@ -64,21 +65,13 @@ class _EditProfilePageState extends State<EditProfilePage>
     'Others',
     'Prefer not to say',
   ];
-  final List<String> _languageOptions = [
-    'English',
-    'Malay',
-    'Mandarin',
-    'Tamil',
-    'English & Malay',
-    'English & Mandarin',
-    'Multilingual',
-    'Other',
-  ];
+
+  bool get _isEmployer => _role == UserRole.employer;
+  int get _tabCount => _isEmployer ? 2 : 4;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
     _load();
   }
 
@@ -89,28 +82,32 @@ class _EditProfilePageState extends State<EditProfilePage>
         setState(() => _loading = false);
         return;
       }
-      
+
       // Add timeout to prevent infinite loading
-      final p = await _service.getUserProfile(uid).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('EditProfilePage: Timeout loading profile');
-          return null;
-        },
-      );
-      
+      final p = await _service
+          .getUserProfile(uid)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('EditProfilePage: Timeout loading profile');
+              return null;
+            },
+          );
+
       if (p != null) {
         _nameCtrl.text = p.displayName;
         _phoneCtrl.text = p.phone;
         _emailCtrl.text = p.email;
         _locationAddress = p.location;
         _geoLocation = p.geoLocation;
-        _skillsCtrl.text = p.skills.join(', ');
+        _skills = List.from(p.skills);
         // Validate dropdown values - only use if they exist in options
         _selectedGender = _genderOptions.contains(p.gender) ? p.gender : '';
-        _selectedEthnicity = _ethnicityOptions.contains(p.ethnicity) ? p.ethnicity : '';
+        _selectedEthnicity = _ethnicityOptions.contains(p.ethnicity)
+            ? p.ethnicity
+            : '';
         _dateOfBirth = p.dateOfBirth;
-        _selectedLanguage = _languageOptions.contains(p.languageProficiency) ? p.languageProficiency : '';
+        _languages = List.from(p.languageProficiency);
         _bankNameCtrl.text = p.bankName;
         _accountHolderCtrl.text = p.accountHolderName;
         _bankAccountCtrl.text = p.bankAccountNumber;
@@ -131,7 +128,11 @@ class _EditProfilePageState extends State<EditProfilePage>
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        _tabController?.dispose();
+        _tabController = TabController(length: _tabCount, vsync: this);
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -161,16 +162,12 @@ class _EditProfilePageState extends State<EditProfilePage>
         phone: _phoneCtrl.text.trim(),
         location: _locationAddress.trim(),
         geoLocation: _geoLocation,
-        skills: _skillsCtrl.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList(),
+        skills: _skills,
         role: _role,
         gender: _selectedGender,
         ethnicity: _selectedEthnicity,
         dateOfBirth: _dateOfBirth,
-        languageProficiency: _selectedLanguage,
+        languageProficiency: _languages,
         bankName: _bankNameCtrl.text.trim(),
         accountHolderName: _accountHolderCtrl.text.trim(),
         bankAccountNumber: _bankAccountCtrl.text.trim(),
@@ -203,11 +200,10 @@ class _EditProfilePageState extends State<EditProfilePage>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
-    _skillsCtrl.dispose();
     _bankNameCtrl.dispose();
     _accountHolderCtrl.dispose();
     _bankAccountCtrl.dispose();
@@ -269,11 +265,11 @@ class _EditProfilePageState extends State<EditProfilePage>
                         ),
                         indicatorColor: const Color(0xFF0F1E3C),
                         indicatorWeight: 3,
-                        tabs: const [
-                          Tab(text: 'Basic Information'),
-                          Tab(text: 'Bank Details'),
-                          Tab(text: 'Job Experience'),
-                          Tab(text: 'Documents'),
+                        tabs: [
+                          const Tab(text: 'Basic Information'),
+                          const Tab(text: 'Bank Details'),
+                          if (!_isEmployer) const Tab(text: 'Job Experience'),
+                          if (!_isEmployer) const Tab(text: 'Documents'),
                         ],
                       ),
                     ),
@@ -287,8 +283,8 @@ class _EditProfilePageState extends State<EditProfilePage>
                   children: [
                     _buildPersonalInfoTab(),
                     _buildBankDetailsTab(),
-                    _buildJobExperienceTab(),
-                    _buildDocumentsTab(),
+                    if (!_isEmployer) _buildJobExperienceTab(),
+                    if (!_isEmployer) _buildDocumentsTab(),
                   ],
                 ),
               ),
@@ -301,7 +297,7 @@ class _EditProfilePageState extends State<EditProfilePage>
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, -4),
                   ),
@@ -315,7 +311,9 @@ class _EditProfilePageState extends State<EditProfilePage>
                       backgroundColor: const Color(0xFF0F1E3C),
                       foregroundColor: Colors.white,
                       elevation: 2,
-                      shadowColor: const Color(0xFF0F1E3C).withOpacity(0.4),
+                      shadowColor: const Color(
+                        0xFF0F1E3C,
+                      ).withValues(alpha: 0.4),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -405,14 +403,65 @@ class _EditProfilePageState extends State<EditProfilePage>
                 prefixIcon: Icons.cake_outlined,
                 onChanged: (date) => setState(() => _dateOfBirth = date),
               ),
-              const SizedBox(height: 16),
-              _buildDropdownField(
-                label: 'Language Proficiency',
-                value: _selectedLanguage.isEmpty ? null : _selectedLanguage,
-                items: _languageOptions,
-                prefixIcon: Icons.language_outlined,
-                onChanged: (v) => setState(() => _selectedLanguage = v ?? ''),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildSectionCard(
+            title: 'Language Proficiency',
+            icon: Icons.language_outlined,
+            headerAction: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F1E3C),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 20),
               ),
+              onPressed: _showAddLanguageDialog,
+            ),
+            children: [
+              if (_languages.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 60,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No languages added',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap + to add languages you speak',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ..._languages.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final lang = entry.value;
+                  return _buildLanguageCard(lang, index);
+                }),
             ],
           ),
           const SizedBox(height: 20),
@@ -474,17 +523,12 @@ class _EditProfilePageState extends State<EditProfilePage>
               title: 'Skills',
               icon: Icons.psychology_outlined,
               children: [
-                _buildTextField(
-                  controller: _skillsCtrl,
-                  label: 'Your Skills',
-                  hint: 'e.g. Python, Flutter, Communication',
-                  prefixIcon: Icons.auto_awesome_outlined,
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Separate multiple skills with commas',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                SkillsPicker(
+                  selectedSkills: _skills,
+                  onSkillsChanged: (skills) {
+                    setState(() => _skills = skills);
+                  },
+                  maxSkills: 20,
                 ),
               ],
             ),
@@ -523,7 +567,9 @@ class _EditProfilePageState extends State<EditProfilePage>
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Your bank details are used for receiving payments from completed jobs.',
+                        _isEmployer
+                            ? 'Your bank details are used for topping up your e-wallet balance.'
+                            : 'Your bank details are used for receiving payments from completed jobs.',
                         style: TextStyle(
                           color: Colors.blue.shade700,
                           fontSize: 13,
@@ -655,7 +701,7 @@ class _EditProfilePageState extends State<EditProfilePage>
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFF0F1E3C).withOpacity(0.1),
+              color: const Color(0xFF0F1E3C).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.work, color: Color(0xFF0F1E3C), size: 24),
@@ -958,6 +1004,424 @@ class _EditProfilePageState extends State<EditProfilePage>
     );
   }
 
+  // ==================== LANGUAGE PROFICIENCY METHODS ====================
+  Widget _buildLanguageCard(LanguageProficiency lang, int index) {
+    Color levelColor;
+
+    switch (lang.level) {
+      case 'Native':
+        levelColor = Colors.purple;
+        break;
+      case 'Advanced':
+        levelColor = Colors.green;
+        break;
+      case 'Intermediate':
+        levelColor = Colors.orange;
+        break;
+      case 'Basic':
+      default:
+        levelColor = Colors.blue;
+        break;
+    }
+
+    return Container(
+      margin: EdgeInsets.only(top: index > 0 ? 10 : 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Text(
+                  lang.language,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: Color(0xFF0F1E3C),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: levelColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    lang.level,
+                    style: TextStyle(
+                      color: levelColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, color: Colors.grey.shade400, size: 20),
+            onPressed: () {
+              setState(() {
+                _languages.removeAt(index);
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddLanguageDialog() {
+    String? selectedLanguage;
+    String selectedLevel = 'Intermediate';
+    final otherLanguageCtrl = TextEditingController();
+
+    final List<String> availableLanguages = [
+      'English',
+      'Malay',
+      'Mandarin',
+      'Tamil',
+      'Other',
+    ];
+
+    final List<String> proficiencyLevels = [
+      'Basic',
+      'Intermediate',
+      'Advanced',
+      'Native',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0F1E3C), Color(0xFF1A3A5C)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.chat_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Text(
+                          'Add Language',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F1E3C),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Language Dropdown
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedLanguage,
+                        decoration: InputDecoration(
+                          labelText: 'Select Language',
+                          prefixIcon: const Icon(Icons.chat_bubble_outline),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.transparent,
+                        ),
+                        items: availableLanguages.map((lang) {
+                          return DropdownMenuItem(
+                            value: lang,
+                            child: Text(lang),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setModalState(() {
+                            selectedLanguage = value;
+                            if (value != 'Other') {
+                              otherLanguageCtrl.clear();
+                            }
+                          });
+                        },
+                      ),
+                    ),
+
+                    // Other Language Text Field
+                    if (selectedLanguage == 'Other') ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: TextField(
+                          controller: otherLanguageCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Enter Language Name',
+                            hintText: 'e.g. Japanese, Korean, French...',
+                            prefixIcon: const Icon(Icons.edit_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.transparent,
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+
+                    // Proficiency Level Section
+                    const Text(
+                      'Proficiency Level',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F1E3C),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Level Cards
+                    ...proficiencyLevels.map((level) {
+                      final isSelected = selectedLevel == level;
+                      Color levelColor;
+                      String levelDesc;
+
+                      switch (level) {
+                        case 'Native':
+                          levelColor = Colors.purple;
+                          levelDesc = 'Native or bilingual proficiency';
+                          break;
+                        case 'Advanced':
+                          levelColor = Colors.green;
+                          levelDesc = 'Professional working proficiency';
+                          break;
+                        case 'Intermediate':
+                          levelColor = Colors.orange;
+                          levelDesc = 'Limited working proficiency';
+                          break;
+                        case 'Basic':
+                        default:
+                          levelColor = Colors.blue;
+                          levelDesc = 'Elementary proficiency';
+                          break;
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: InkWell(
+                          onTap: () {
+                            setModalState(() => selectedLevel = level);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? levelColor.withValues(alpha: 0.1)
+                                  : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? levelColor
+                                    : Colors.grey.shade300,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        level,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          color: isSelected
+                                              ? levelColor
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        levelDesc,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: levelColor,
+                                    size: 24,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F1E3C),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        onPressed: () {
+                          if (selectedLanguage == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select a language'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Get the actual language name
+                          String languageName = selectedLanguage!;
+                          if (selectedLanguage == 'Other') {
+                            if (otherLanguageCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter a language name'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            languageName = otherLanguageCtrl.text.trim();
+                          }
+
+                          // Check if language already exists
+                          if (_languages.any(
+                            (l) =>
+                                l.language.toLowerCase() ==
+                                languageName.toLowerCase(),
+                          )) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('This language is already added'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final newLang = LanguageProficiency(
+                            language: languageName,
+                            level: selectedLevel,
+                          );
+                          setState(() {
+                            _languages.add(newLang);
+                          });
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$languageName added successfully'),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_circle_outline, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Add Language',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // ==================== DOCUMENTS TAB ====================
   Widget _buildDocumentsTab() {
     return SingleChildScrollView(
@@ -1103,9 +1567,9 @@ class _EditProfilePageState extends State<EditProfilePage>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -1136,7 +1600,7 @@ class _EditProfilePageState extends State<EditProfilePage>
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1397,7 +1861,7 @@ class _EditProfilePageState extends State<EditProfilePage>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1413,7 +1877,7 @@ class _EditProfilePageState extends State<EditProfilePage>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F1E3C).withOpacity(0.08),
+                    color: const Color(0xFF0F1E3C).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: const Color(0xFF0F1E3C), size: 20),
@@ -1497,7 +1961,7 @@ class _EditProfilePageState extends State<EditProfilePage>
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
